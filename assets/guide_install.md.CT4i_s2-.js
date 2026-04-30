@@ -1,0 +1,1 @@
+import{_ as t,o as e,c as a}from"./chunks/framework.CAXxHpAX.js";const _=JSON.parse('{"title":"","description":"","frontmatter":{},"headers":[],"relativePath":"guide/install.md","filePath":"guide/install.md","lastUpdated":null}'),s={name:"guide/install.md"};function n(l,r,i,o,c,d){return e(),a("div")}const m=t(s,[["render",n]]);export{_ as __pageData,m as default};
