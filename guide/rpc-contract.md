@@ -1,4 +1,4 @@
-# RPC Contract
+# RPC 契约
 
 ## 设计思想
 

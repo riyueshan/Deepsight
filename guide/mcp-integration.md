@@ -1,4 +1,4 @@
-# MCP Integration
+# MCP 集成
 
 在 Deepsight 架构中，底层的 eBPF 探针负责高频采集与安全截断，中间的 gRPC 和 Server 负责压缩解包、语义重组与冷热缓存，而顶层的 MCP（Model Context Protocol）抽象层则负责最终的“外交”。
 
@@ -6,7 +6,7 @@
 
 Deepsight 严格遵循 MCP 规范，向外暴露三大核心原语：**Resources（资源）**、**Tools（工具）** 和 **Prompts（提示词模板）**。
 
-## MCP Resources
+## MCP Resources（资源）
 
 Resources 是只读的、被动的上下文数据，它直接对接 Server 内存中的“纯内存时间滑动窗口”和“持久化事件队列”，大模型在排查问题的初期，首先会拉取这些资源来构建系统的全局静态切片。
 
@@ -49,7 +49,7 @@ Resources 是只读的、被动的上下文数据，它直接对接 Server 内�
 }
 ```
 
-## MCP Tools
+## MCP Tools（工具）
 
 - Tools 是可执行的动作，它直接对接 Server 的“控制面 TaskChannel”与“长短任务智能状态机”。当大模型通过 Resources 发现疑点后，会调用 Tools 向底层 Probe 动态下发 eBPF 探针进行下钻排查。
 - **硬编码探针安全白名单**：针对 Server 通过 `TaskChannel` 直接下发 eBPF 指令带来的“高低权限倒挂”风险，Probe 内部必须硬编码“安全操作白名单”。仅允许挂载只读型探针（如 Kprobe/Tracepoint），从物理源头拒绝任何可能修改内存或阻断网络的指令，防御大模型幻觉带来的 DoS 风险。
@@ -95,7 +95,7 @@ Resources 是只读的、被动的上下文数据，它直接对接 Server 内�
 }
 ```
 
-## MCP Prompts
+## MCP Prompts（提示词）
 
 大模型在面对极其硬核的 Linux 内核堆栈时，如果没有引导，很容易产生误判。同时，为了驾驭长任务凭证机制和边缘截断机制，Prompts 充当了内置在 Deepsight 中的“人类 SRE 专家纪律”。
 

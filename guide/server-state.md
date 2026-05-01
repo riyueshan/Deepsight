@@ -1,4 +1,4 @@
-# Server State
+# Server 状态
 
 在 Deepsight 的架构中，存在一个极具挑战性的物理现实：
 

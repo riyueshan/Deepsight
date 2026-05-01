@@ -8,6 +8,7 @@ const siteRoot = path.resolve(__dirname, "..");
 const docsRoot = process.env.DEEPSIGHT_DOCS_DIR
   ? path.resolve(process.env.DEEPSIGHT_DOCS_DIR)
   : path.resolve(siteRoot, "..", "Deepsight", "docs");
+const localDocsRoot = path.join(siteRoot, ".vitepress", "local-docs");
 const guideRoot = path.join(siteRoot, "guide");
 const publicAssetsRoot = path.join(siteRoot, "public", "assets");
 
@@ -27,6 +28,10 @@ const publicDocs = [
   [path.join("dev", "proto", "compatibility.md"), path.join("guide", "dev", "proto", "compatibility.md")],
   [path.join("dev", "site.md"), "guide/site-maintenance.md"],
   [path.join("use", "install.md"), "guide/install.md"]
+];
+
+const localDocs = [
+  ["agent-guide.md", "guide/agent-guide.md"]
 ];
 
 async function ensureDir(dir) {
@@ -86,6 +91,16 @@ async function copyMappedDocs() {
   }
 }
 
+async function copyLocalDocs() {
+  for (const [sourceRel, targetRel] of localDocs) {
+    const sourcePath = path.resolve(localDocsRoot, sourceRel);
+    const targetPath = path.resolve(siteRoot, targetRel);
+    const raw = await fs.readFile(sourcePath, "utf8");
+    await ensureDir(path.dirname(targetPath));
+    await fs.writeFile(targetPath, raw, "utf8");
+  }
+}
+
 async function copyAssets() {
   await fs.rm(publicAssetsRoot, { recursive: true, force: true });
   await ensureDir(publicAssetsRoot);
@@ -103,4 +118,5 @@ async function copyAssets() {
 
 await cleanGeneratedGuide();
 await copyMappedDocs();
+await copyLocalDocs();
 await copyAssets();

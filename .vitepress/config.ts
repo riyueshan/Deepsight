@@ -22,7 +22,7 @@ export default defineConfig({
       {
         text: "文档",
         link: "/guide/overview",
-        activeMatch: "^/guide/(overview|install|dev-setup|site-maintenance|data-pipeline|rpc-contract|server-state|mcp-integration|engineering-arch|dev/config|dev/proto)(/|$)"
+        activeMatch: "^/guide/(overview|install|agent-guide|dev-setup|site-maintenance|data-pipeline|rpc-contract|server-state|mcp-integration|engineering-arch|dev/config|dev/proto)(/|$)"
       },
       { text: "GitHub", link: "https://github.com/riyueshan/deepsight" }
     ],
@@ -47,6 +47,7 @@ export default defineConfig({
               items: [
                 { text: "开发环境", link: "/guide/dev-setup" },
                 { text: "配置系统", link: "/guide/dev/config" },
+                { text: "Agent 开发指南", link: "/guide/agent-guide" },
                 {
                   text: "Protobuf 契约",
                   collapsed: true,

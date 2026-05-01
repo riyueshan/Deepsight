@@ -58,4 +58,4 @@ Deepsight 由三个运行时层次组成：
 
 - 如果你想先跑通工程链路，阅读 [快速开始](/guide/quick-start)
 - 如果你想理解系统全貌，阅读 [项目概览](/guide/overview)
-- 如果你要参与研发和维护，阅读 [站点维护文档](/guide/site-maintenance)
+- 如果你要参与研发和维护，阅读 [Agent 开发指南](/guide/agent-guide) 和 [站点维护文档](/guide/site-maintenance)
