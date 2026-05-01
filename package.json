@@ -6,7 +6,9 @@
     "docs:sync": "node ./scripts/sync-docs.mjs",
     "docs:dev": "npm run docs:sync && vitepress dev .",
     "docs:build": "npm run docs:sync && vitepress build .",
-    "docs:preview": "vitepress preview ."
+    "docs:build:ci": "vitepress build .",
+    "docs:preview": "vitepress preview .",
+    "publish": "bash ./scripts/publish.sh"
   },
   "devDependencies": {
     "vitepress": "^1.6.4",
