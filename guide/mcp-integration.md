@@ -10,6 +10,8 @@ Deepsight 严格遵循 MCP 规范，向外暴露三大核心原语：**Resources
 
 Resources 是只读的、被动的上下文数据，它直接对接 Server 内存中的“纯内存时间滑动窗口”和“持久化事件队列”，大模型在排查问题的初期，首先会拉取这些资源来构建系统的全局静态切片。
 
+网络相关 Resources 的 Metric/Event 来源、聚合边界和下钻入口见[网络模块 gRPC 接入设计](/guide/modules/network-grpc)。
+
 ### 常态统计数据
 
 - **底层数据源**：纯内存时间滑动窗口（Metrics 热数据）
@@ -53,6 +55,8 @@ Resources 是只读的、被动的上下文数据，它直接对接 Server 内�
 
 - Tools 是可执行的动作，它直接对接 Server 的“控制面 TaskChannel”与“长短任务智能状态机”。当大模型通过 Resources 发现疑点后，会调用 Tools 向底层 Probe 动态下发 eBPF 探针进行下钻排查。
 - **硬编码探针安全白名单**：针对 Server 通过 `TaskChannel` 直接下发 eBPF 指令带来的“高低权限倒挂”风险，Probe 内部必须硬编码“安全操作白名单”。仅允许挂载只读型探针（如 Kprobe/Tracepoint），从物理源头拒绝任何可能修改内存或阻断网络的指令，防御大模型幻觉带来的 DoS 风险。
+
+网络 Tools 不暴露任意 hook/function，而是暴露 `trace_network_drops`、`trace_tcp_retransmits`、`monitor_tcp_connections` 等白名单任务；候选参数和安全边界见[网络模块 gRPC 接入设计](/guide/modules/network-grpc)。
 
 ### 示例工具
 

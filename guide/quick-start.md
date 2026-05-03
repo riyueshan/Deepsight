@@ -96,64 +96,30 @@ cd deepsight
 
 ## 闭环验证与测试
 
-在完成上述环境配置后，你可以利用项目中提供的敏捷开发脚本快速验证本地全链路（探针提取 -> 管道传输 -> 服务端接收）是否正常工作。
-
-请打开三个独立的终端窗口，并依次执行：
-
-- 启动中心服务端
+普通用户态逻辑验证通过 `make` 和 Go test 完成：
 
 ```bash
-./scripts/dev/run_server.sh
+. scripts/dev/env.sh
+make test
+make build
 ```
 
-*(会自动执行 `make server` 编译并监听 `50051` 端口)*
-
-- 启动 eBPF 内核探针
+涉及 proto 契约时，还需要运行：
 
 ```bash
-# 必须使用 sudo 提权以加载 eBPF 字节码到内核
-./scripts/dev/run_probe.sh
+. scripts/dev/env.sh
+make proto
 ```
 
-*(会自动执行 `make probe` 生成 BPF 代码并启动客户端)*
+真实 Probe E2E 不再由 `scripts/` 下的触发或验证脚本承载。Probe E2E 的触发、
+编排和断言统一放在 `tests/probe-e2e/`，具体分层、目录和人工 root 执行方式见
+[Probe 测试框架](/guide/dev/probe-test)。
 
-默认使用 TCP 明文开发链路：
+当前约定：
 
-```yaml
-network: tcp
-address: 127.0.0.1:50051
-tls:
-  enabled: false
-```
-
-如需验证单机 UDS 链路，可以复制示例配置后修改 endpoint：
-
-```bash
-cp configs/server.example.yaml /tmp/deepsight-server.yaml
-cp configs/probe.example.yaml /tmp/deepsight-probe.yaml
-```
-
-将两个文件中的 endpoint 改为：
-
-```yaml
-network: unix
-address: /var/run/deepsight/deepsight.sock
-tls:
-  enabled: false
-```
-
-然后分别启动：
-
-```bash
-./scripts/dev/run_server.sh --config /tmp/deepsight-server.yaml
-./scripts/dev/run_probe.sh --config /tmp/deepsight-probe.yaml
-```
-
-- 执行触发测试
-
-```bash
-# 执行此类脚本可以在系统中定向制造事件
-./scripts/tests/trigger_xxx.sh
-```
-
-*(此时切回服务端终端，应当能看到源源不断的 JSON 结构化日志)*
+- fake/mock 测试只能报告 Unit / In-Process 行为通过。
+- real Probe E2E 必须启动真实 `deepsight-probe --config &lt;probe.yaml&gt;` 子进程。
+- 真实 eBPF 或网络刺激必须由 Go E2E harness 编排，并在测试二进制内部完成
+  protobuf 强类型断言。
+- 人类以 root 权限运行已编译的 E2E binary，并把 stdout/stderr 写入固定
+  `/tmp/deepsight-probe-e2e-&lt;module&gt;.log`，供 Agent 读取。

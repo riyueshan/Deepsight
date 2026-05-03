@@ -113,7 +113,7 @@ Cloudflare DNS 建议先配置为：
 ```text
 Type: CNAME
 Name: docs
-Target: <github-user>.github.io
+Target: &lt;github-user&gt;.github.io
 Proxy status: DNS only
 ```
 

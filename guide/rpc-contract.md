@@ -133,7 +133,7 @@ message TaskRequest {
   
   // 大模型下发的特定指令参数（如抓取网络、抓取内存）
   oneof command_args {
-    modules.TraceNetArgs network_args = 3;
+    modules.TraceNetworkArgs network_args = 3;
     modules.TraceStorageArgs storage_args = 4;
   }
 }
@@ -145,6 +145,9 @@ message TaskResponse {
   
   // 捕获到的病理事件数组
   repeated EventWrapper trace_results = 4;
+
+  // 任务窗口内形成的指标结果，例如连接快照或接口流量 delta
+  repeated MetricWrapper metric_results = 5;
 }
 ```
 

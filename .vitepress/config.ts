@@ -22,7 +22,7 @@ export default defineConfig({
       {
         text: "文档",
         link: "/guide/overview",
-        activeMatch: "^/guide/(overview|install|agent-guide|dev-setup|site-maintenance|data-pipeline|rpc-contract|server-state|mcp-integration|engineering-arch|dev/config|dev/proto)(/|$)"
+        activeMatch: "^/guide/(overview|install|agent-guide|dev-setup|site-maintenance|data-pipeline|rpc-contract|server-state|mcp-integration|engineering-arch|dev|modules)(/|$)"
       },
       { text: "GitHub", link: "https://github.com/riyueshan/deepsight" }
     ],
@@ -47,6 +47,8 @@ export default defineConfig({
               items: [
                 { text: "开发环境", link: "/guide/dev-setup" },
                 { text: "配置系统", link: "/guide/dev/config" },
+                { text: "Hello-Arch 架构", link: "/guide/dev/hello-arch" },
+                { text: "Probe 测试框架", link: "/guide/dev/probe-test" },
                 { text: "Agent 开发指南", link: "/guide/agent-guide" },
                 {
                   text: "Protobuf 契约",
@@ -81,7 +83,34 @@ export default defineConfig({
               text: "工程实现",
               collapsed: true,
               items: [
-                { text: "工程设计", link: "/guide/engineering-arch" }
+                { text: "工程设计", link: "/guide/engineering-arch" },
+                {
+                  text: "网络模块",
+                  collapsed: true,
+                  items: [
+                    { text: "模块设计", link: "/guide/modules/network" },
+                    { text: "Probe 设计", link: "/guide/modules/network-probe" },
+                    { text: "gRPC 接入", link: "/guide/modules/network-grpc" }
+                  ]
+                },
+                {
+                  text: "进程模块",
+                  collapsed: true,
+                  items: [
+                    { text: "模块设计", link: "/guide/modules/process" },
+                    { text: "Probe 设计", link: "/guide/modules/process-probe" },
+                    { text: "gRPC 接入", link: "/guide/modules/process-grpc" }
+                  ]
+                },
+                {
+                  text: "存储模块",
+                  collapsed: true,
+                  items: [
+                    { text: "模块设计", link: "/guide/modules/storage" },
+                    { text: "Probe 设计", link: "/guide/modules/storage-probe" },
+                    { text: "gRPC 接入", link: "/guide/modules/storage-grpc" }
+                  ]
+                }
               ]
             }
           ]

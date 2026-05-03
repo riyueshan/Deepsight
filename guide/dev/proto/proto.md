@@ -43,13 +43,16 @@ api/
 
 `modules` 放业务模块自己的 payload。
 
-Hello 阶段只定义最小壳：
+Hello 阶段最初只定义最小壳：
+
+- `ProcessMetric` / `ProcessEvent` / `TraceProcessArgs`
+
+Network 和 Storage 模块已经分别在后续里程碑中演进为强字段契约：
 
 - `NetworkMetric` / `NetworkEvent` / `TraceNetworkArgs`
 - `StorageMetric` / `StorageEvent` / `TraceStorageArgs`
-- `ProcessMetric` / `ProcessEvent` / `TraceProcessArgs`
 
-这些结构会随着模块开发逐步增加字段。它们不应该包含传输控制字段，例如 `session_token`、`time_offset_ns`、`truncated_count`；这些属于总线 wrapper。
+模块 payload 不应该包含传输控制字段，例如 `session_token`、`time_offset_ns`、`truncated_count`；这些属于总线 wrapper。
 
 ### `v1`
 
@@ -148,7 +151,7 @@ Hello 阶段当前真实事件 `execve` 被归类为 `ProcessEvent`，进入 `sp
 
 新增或扩展模块时遵守固定流程：
 
-1. 在 `proto/modules/<module>.proto` 定义或扩展模块 payload。
+1. 在 `proto/modules/&lt;module&gt;.proto` 定义或扩展模块 payload。
 2. 如果是新模块，在 `proto/v1/telemetry.proto` 的 `MetricWrapper` / `EventWrapper` / `TaskRequest` oneof 中注册。
 3. 执行 `make proto` 生成 `api/`。
 4. Probe transformer 将内部 raw 数据转换为对应 payload。

@@ -17,12 +17,12 @@ proto/modules/process.proto
 每个模块当前都包含三类 message：
 
 ```text
-<Module>Metric     # 高频状态指标
-<Module>Event      # 突发诊断事件
-Trace<Module>Args  # 控制面下钻任务参数
+&lt;Module&gt;Metric     # 高频状态指标
+&lt;Module&gt;Event      # 突发诊断事件
+Trace&lt;Module&gt;Args  # 控制面下钻任务参数
 ```
 
-例如进程模块：
+例如 Hello 阶段的进程模块曾使用：
 
 ```protobuf
 message ProcessMetric {
@@ -62,24 +62,33 @@ Metric payload 表达连续状态。
 - 某个具体进程被杀、某次 I/O 超时
 - 需要防抖或持久化的证据
 
-Hello 阶段的 `NetworkMetric` / `StorageMetric` / `ProcessMetric` 仍是最小通用壳：
-
-```protobuf
-string name = 1;
-uint64 value = 2;
-```
-
-后续模块开发可以演进为强类型字段。例如：
+`NetworkMetric` 已进入网络模块 N0+N1，`StorageMetric` 已进入 Storage L1，
+`ProcessMetric` 已进入 Process P0-P3，均替换为强字段契约。旧的 `name = 1`、`value = 2`
+已 reserved，避免未来误复用 Hello 阶段字段。模块指标通过 `kind`、
+`temporality`、`metric_value` 和低基数维度表达：
 
 ```protobuf
 message NetworkMetric {
-  uint64 active_connections = 1;
-  uint64 dropped_packets_per_sec = 2;
-  uint64 retransmits_per_sec = 3;
+  reserved 1, 2;
+  reserved "name", "value";
+
+  NetworkMetricKind kind = 3;
+  NetworkMetricTemporality temporality = 4;
+  uint64 metric_value = 5;
+  uint64 window_ns = 6;
+  NetworkProtocol protocol = 7;
+  NetworkFamily family = 8;
+  NetworkDirection direction = 9;
+  NetworkTCPState tcp_state = 10;
 }
 ```
 
-演进时要注意兼容性：已有字段编号不能复用，语义不能改变。
+Process P3 后，`ProcessMetric` / `ProcessEvent` 可携带 `pod_uid`、`container_id`、
+`container_runtime` 等 best-effort 云原生归因字段。Pod/Container 可读名称可能为空；
+常驻 Metric 仍不得携带 PID、完整 cmdline、Pod labels/annotations 等不受控高基数字段。
+
+当前项目还没有外部稳定 network consumer，因此曾允许对 Hello 阶段 network
+payload 做破坏性替换；后续已接受的模块字段不应再复用或改变语义。
 
 ---
 
@@ -110,10 +119,27 @@ Event payload 表达具体发生的行为、异常或诊断证据。
 EventWrapper
   level = WARN
   truncated_count = 20
-  network = NetworkEvent{event_type="packet_drop", summary="drop at tcp_v4_rcv"}
+  network = NetworkEvent{
+    kind = NETWORK_EVENT_KIND_PACKET_DROP
+    reason_class = NETWORK_REASON_CLASS_DROP
+    reason_code = 7
+  }
 ```
 
 `level` 和 `truncated_count` 放在 wrapper，是因为它们是所有模块事件共享的横切语义。
+
+网络 N2 常驻 Event Evidence 使用 `NetworkEvent` 表达三类可定位事件：
+
+| Event kind | 语义 | 字段要求 |
+| --- | --- | --- |
+| `NETWORK_EVENT_KIND_TCP_CONNECT_FAILED` | TCP 建连失败证据 | 协议族、端口和 reason class 必须尽量保留，tuple IP、pid/comm 可为空 |
+| `NETWORK_EVENT_KIND_TCP_RETRANSMIT_BURST` | 重传证据样本 | 高频截断通过 `EventWrapper.truncated_count` 表达，`count` 可表达样本聚合数量 |
+| `NETWORK_EVENT_KIND_PACKET_DROP` | 丢包证据样本 | `reason_code` / `reason_class` 是核心字段，其他上下文按 hook 可用性尽力填充 |
+
+`stack_id` 在 N2 可作为占位或 best-effort 字段传递。N3 TaskResponse
+字典闸门以“禁止不可还原 ID”方式关闭：Probe 不在 Task 结果中返回无法由
+Bob-facing consumer 还原的 stack/string dictionary ID。后续若需要符号栈或长字符串压缩，
+需要单独设计 dictionary wire closure。
 
 ---
 
@@ -134,10 +160,26 @@ EventWrapper
 message TraceNetworkArgs {
   string target_ip = 1;
   uint32 duration_sec = 2;
+  NetworkTaskType task_type = 3;
+  uint32 target_port = 4;
+  NetworkProtocol protocol = 5;
+  uint32 pid = 6;
+  uint64 netns_id = 7;
+  string interface = 8;
+  NetworkDirection direction = 9;
+  uint32 sample_rate = 10;
+  uint32 max_events = 11;
 }
 ```
 
-未来如果网络模块需要按端口、协议、namespace 过滤，应扩展 `TraceNetworkArgs`，而不是在 `TaskRequest` 里新增通用字符串字段。
+网络模块已经按端口、协议、namespace、interface 等过滤维度扩展
+`TraceNetworkArgs`。这些字段是 N3 TaskChannel executor 的契约。N3 中
+trace 型任务通过 `TaskResponse.trace_results` 返回 `EventWrapper`，窗口型任务通过
+`TaskResponse.metric_results` 返回 `MetricWrapper`。
+
+网络模块的 Metric、Event 与 TaskChannel 候选字段以[网络模块设计](/guide/modules/network)为入口；Probe 侧处理见[网络模块 Probe 设计](/guide/modules/network-probe)，gRPC 接入和控制面参数见[网络模块 gRPC 接入设计](/guide/modules/network-grpc)。真正的线协议仍以 `proto/modules/network.proto` 为准。
+
+存储模块的顶层设计以[存储模块设计](/guide/modules/storage)为入口；Probe 侧处理见[存储模块 Probe 设计](/guide/modules/storage-probe)，gRPC 接入和控制面参数见[存储模块 gRPC 接入设计](/guide/modules/storage-grpc)。真正的线协议仍以 `proto/modules/storage.proto` 为准。
 
 ---
 

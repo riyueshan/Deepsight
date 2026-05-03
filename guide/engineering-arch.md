@@ -31,11 +31,10 @@ Deepsight/
 ├── internal/               # [私有] 跨模块共享的私有库
 │   └── deps/               # 固化底层外部运行时 (如 ebpf/grpc) 防 go mod tidy 误删
 ├── configs/                # [配置] 环境参数与 MCP Prompts 专家 SOP 模板
-├── scripts/                # [工具] 自动化运维与 DevOps 脚本矩阵
+├── scripts/                # [工具] 环境初始化与项目 shell 环境入口
 │   ├── setup/              # 系统环境与项目级初始化配置
-│   ├── dev/                # 特权隔离的编译与本地测试入口
-│   └── tests/              # 内核负载刺激与探针触发源
-└── tests/                  # [集成] 需要 Root 权限的端到端 (E2E) 测试链
+│   └── dev/                # 项目 Go/build/test 环境入口
+└── tests/                  # [测试] 需要 Root 权限的端到端 (E2E) 测试链
 ```
 
 ### 1.2 模块设计要点
@@ -59,15 +58,16 @@ Deepsight/
    - 彻底剥离运行属性，专注静态处理。
    - 执行 `make build` 闭环双端编译，利用 `go generate ./probe/...` 动态扫描并挂载 eBPF 编译链。
    - 利用 `make fmt` 与 `make lint` 守卫代码底线（已绑定至 pre-commit hook）。
-3. **特权运行与调试 (`scripts/dev/`)**：
-   - `run_probe.sh` 与 `run_server.sh`，专门处理提权（`sudo`）、环境变量配置和复杂的调试前置条件，屏蔽直接操作二进制的风险。
+3. **项目环境入口 (`scripts/dev/`)**：
+   - `env.sh` 只导出 Go/build/test 所需环境变量，不安装依赖、不运行 `sudo`、不修改仓库文件。
+   - `scripts/` 不承载新增 Probe 测试框架；真实 Probe E2E 的触发、编排和断言统一进入 `tests/probe-e2e/`。
 
 ### 2.2 测试分层策略
 
-根据 eBPF 项目的特性，测试分为两道物理隔离的防线：
+根据 eBPF 项目的特性，Probe 测试分为两道物理隔离的防线：
 
 - **纯用户态逻辑测试 (Unit Tests)**：就近存放（如 `transformer_test.go`），与业务代码同目录混排，不触碰内核，通过 `make test` 极速验证。
-- **端到端集成测试 (E2E Tests)**：统一放置于根目录 **`tests/`** 文件夹中。此类测试强依赖真实内核环境和 Root 权限，专门用于验证探针注入和事件消费链路。
+- **Compiled Probe E2E Harness**：存放于 `tests/probe-e2e/`，由 Go 测试二进制编排。Agent 负责编译，人类以 root 权限运行；测试必须启动真实 Probe 子进程、制造真实系统刺激，并在测试二进制内部完成 protobuf 强类型断言。
 
 ### 2.3 资产管理
 

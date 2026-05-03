@@ -21,11 +21,22 @@ const publicDocs = [
   [path.join("dev", "quick-start.md"), "guide/quick-start.md"],
   [path.join("dev", "setup.md"), "guide/dev-setup.md"],
   [path.join("dev", "arch.md"), "guide/engineering-arch.md"],
+  [path.join("dev", "hello-arch.md"), path.join("guide", "dev", "hello-arch.md")],
   [path.join("dev", "config.md"), path.join("guide", "dev", "config.md")],
+  [path.join("dev", "probe-test.md"), path.join("guide", "dev", "probe-test.md")],
   [path.join("dev", "proto", "proto.md"), path.join("guide", "dev", "proto", "proto.md")],
   [path.join("dev", "proto", "telemetry-bus.md"), path.join("guide", "dev", "proto", "telemetry-bus.md")],
   [path.join("dev", "proto", "module-payloads.md"), path.join("guide", "dev", "proto", "module-payloads.md")],
   [path.join("dev", "proto", "compatibility.md"), path.join("guide", "dev", "proto", "compatibility.md")],
+  [path.join("modules", "network.md"), path.join("guide", "modules", "network.md")],
+  [path.join("modules", "network-probe.md"), path.join("guide", "modules", "network-probe.md")],
+  [path.join("modules", "network-grpc.md"), path.join("guide", "modules", "network-grpc.md")],
+  [path.join("modules", "process.md"), path.join("guide", "modules", "process.md")],
+  [path.join("modules", "process-probe.md"), path.join("guide", "modules", "process-probe.md")],
+  [path.join("modules", "process-grpc.md"), path.join("guide", "modules", "process-grpc.md")],
+  [path.join("modules", "storage.md"), path.join("guide", "modules", "storage.md")],
+  [path.join("modules", "storage-probe.md"), path.join("guide", "modules", "storage-probe.md")],
+  [path.join("modules", "storage-grpc.md"), path.join("guide", "modules", "storage-grpc.md")],
   [path.join("dev", "site.md"), "guide/site-maintenance.md"],
   [path.join("use", "install.md"), "guide/install.md"]
 ];
@@ -51,6 +62,10 @@ function toGuideUrl(targetPath) {
   return `/${toPosixPath(path.relative(siteRoot, targetPath)).replace(/\.md$/, "")}`;
 }
 
+function escapePlaceholderTags(content) {
+  return content.replace(/<([A-Za-z][A-Za-z0-9_.-]*|[\u4e00-\u9fff]+)>/g, "&lt;$1&gt;");
+}
+
 function rewriteMarkdown(content, sourcePath, mapping) {
   let rewritten = content
     .replace(/\]\(\.\/assets\//g, "](/assets/")
@@ -72,7 +87,7 @@ function rewriteMarkdown(content, sourcePath, mapping) {
     return match.replace(rawLink, toGuideUrl(targetPath));
   });
 
-  return rewritten;
+  return escapePlaceholderTags(rewritten);
 }
 
 async function copyMappedDocs() {

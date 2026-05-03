@@ -129,7 +129,12 @@ message MetricWrapper {
 ```text
 MetricWrapper
   time_offset_ns = 200
-  network = NetworkMetric{name="active_connections", value=15420}
+  network = NetworkMetric{
+    kind=NETWORK_METRIC_KIND_ACTIVE_TCP_CONNECTIONS,
+    temporality=NETWORK_METRIC_TEMPORALITY_GAUGE,
+    metric_value=15420,
+    protocol=NETWORK_PROTOCOL_TCP
+  }
 ```
 
 ---
@@ -170,6 +175,10 @@ truncated_count = 0
 truncated_count = 200
   表示 Probe 实际观察到 201 条同质事件，但只上报了 1 条典型样本，另外 200 条被截断。
 ```
+
+网络 N2 的 `tcp_connect_failed`、`tcp_retransmit_burst` 和 `packet_drop`
+都使用这个 wrapper 字段表达 Probe 侧限流截断。`NetworkEvent` 只承载
+socket tuple、reason、pid/comm、netns、ifindex、stack id、count 等模块上下文。
 
 这能让大模型识别“事件风暴”，而不是误以为只有一条异常。
 
@@ -219,16 +228,20 @@ message TaskResponse {
   deepsight.common.Status status = 2;
   string error_msg = 3;
   repeated EventWrapper trace_results = 4;
+  repeated MetricWrapper metric_results = 5;
 }
 ```
 
 设计意图：
 
 - Server 可以按需让 Probe 挂载诊断探针。
-- Probe 将任务结果以 `EventWrapper` 返回，继续复用事件语义。
+- Probe 将证据型任务结果以 `EventWrapper` 返回，继续复用事件语义。
+- Probe 将窗口型任务结果以 `MetricWrapper` 返回，例如 TCP 连接快照或接口统计
+  delta。
 - `Trace*Args` 放在模块 proto 中，避免总线变成模块字段堆积区。
 
-Hello 阶段只保留接口，不实现完整任务状态机；Server 会明确返回 gRPC `Unimplemented`，避免调用方误以为控制面可用。
+当前 N3 实现只补齐 Alice-side Probe TaskChannel client/executor；Bob-owned
+Server TaskChannel 仍保持 `Unimplemented`，避免调用方误以为 Server 控制面已经可用。
 
 ---
 

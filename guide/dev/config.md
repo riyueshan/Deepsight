@@ -86,11 +86,11 @@ CLI flag > environment variable > config file > code defaults
 ./build/deepsight-probe --config configs/probe.example.yaml
 ```
 
-开发脚本会透传参数：
+也可以直接使用临时配置运行二进制：
 
 ```bash
-./scripts/dev/run_server.sh --config /tmp/deepsight-server.yaml
-./scripts/dev/run_probe.sh --config /tmp/deepsight-probe.yaml
+./build/deepsight-server --config /tmp/deepsight-server.yaml
+sudo ./build/deepsight-probe --config /tmp/deepsight-probe.yaml
 ```
 
 ---
@@ -131,7 +131,7 @@ buffer:
 运行约束：
 
 - `modules.network/storage/process` 不能全部为 `false`，否则启动失败。
-- Hello 阶段只有 `process` 有真实采集器；`network/storage=true` 会输出 warning，提示 collector 尚未实现。
+- `process` 提供 execve health signal；`network=true` 启动 Network collector；`storage=true` 启动 Storage portable block metrics collector。
 - `log.format` 只接受 `json` 或 `text`，非法值启动失败。
 
 ### Probe 配置
@@ -339,8 +339,8 @@ DefaultServerConfig()
 后续新增模块配置时遵守以下规则：
 
 1. 模块启用开关统一放在 `modules` 下。
-2. Probe 侧采集参数放在 `probe.modules.<module>` 或后续专门的模块配置区。
-3. Server 侧缓存、索引、查询参数放在 `server.modules.<module>` 或 `buffer` 下。
+2. Probe 侧采集参数放在 `probe.modules.&lt;module&gt;` 或后续专门的模块配置区。
+3. Server 侧缓存、索引、查询参数放在 `server.modules.&lt;module&gt;` 或 `buffer` 下。
 4. 传输、安全、日志等横切配置不得塞进模块配置里。
 5. 新字段必须同时更新：
    - `configs/*.example.yaml`
@@ -359,11 +359,22 @@ modules:
 probe:
   modules:
     network:
-      drop_trace_enabled: true
-      sample_duration_sec: 10
+      mode: portable
+      metric_interval_sec: 5
+      reconcile_interval_sec: 30
+      event_sample_rate: 100
+      max_events_per_sec: 100
+      enable_stack: true
+      enable_dataplane: false
+      dataplane_interfaces:
+      allowed_task_types: trace_network_drops, trace_tcp_retransmits, monitor_tcp_connections, monitor_interface_traffic
 ```
 
-Hello 阶段尚未实现上述 `probe.modules.*` 解析；这是模块开发阶段的扩展点。
+`probe.modules.network` 已实现标量解析。当前轻量 YAML parser 不支持数组，
+因此 `allowed_task_types` 和 `dataplane_interfaces` 使用逗号分隔字符串。`mode`
+目前只接受 `portable`；`enable_dataplane=true` 会尝试启用 N4 TCX ingress/egress
+data-plane metrics。`dataplane_interfaces` 为空时自动选择非 loopback、up 接口；非空
+时只尝试指定接口。TCX attach 失败只降级 data-plane metrics，不影响 Portable path。
 
 ---
 

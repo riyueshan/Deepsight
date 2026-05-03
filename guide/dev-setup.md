@@ -111,14 +111,14 @@ Probe 端需要通过 gRPC 将高度压缩后的数据实时推送到 Server 端
 >   - 第三方工具库 (`$(go env GOPATH)/bin`)：`GOPATH` 是 Go 的全局工作区缓存，首次使用 `go install` 下载并编译第三方命令行工具时，Go 会自动创建这个 `bin` 目录并将可执行文件塞进去
 > - 依赖管理：Go Modules (`go.mod`)
 >   - 旧特性：所有的代码必须塞进一个全局的 `GOPATH/src` 目录里，极其反人类
->   - 新特性：从 Go 1.11 开始，可以在电脑的任意位置新建项目文件夹，执行 `go mod init <模块名>`，生成一个 `go.mod` 文件，第三方依赖包会被统一下载到全局缓存（`GOPATH/pkg/mod`），并在编译时按 `go.mod` 声明的版本进行精准组装
+>   - 新特性：从 Go 1.11 开始，可以在电脑的任意位置新建项目文件夹，执行 `go mod init &lt;模块名&gt;`，生成一个 `go.mod` 文件，第三方依赖包会被统一下载到全局缓存（`GOPATH/pkg/mod`），并在编译时按 `go.mod` 声明的版本进行精准组装
 >   - 强烈建议执行 `go env -w GO111MODULE=on` 强制开启，确立开启特性
 > - 安装命令：`go get` & `go install`
->   - `go install <包名>`：
+>   - `go install &lt;包名&gt;`：
 >     - 下载源码并编译成可执行文件，放到 `GOPATH/bin` 下，用于在命令行直接敲击使用
 >     - 本质上只是从主包编译一个二进制文件，因此撤销 `go install` 是通过移除二进制文件完成的(go本身没有相关的撤销命令)
 >   - `go get -tool`：作为项目级`go install`，将二进制代码编译到`GOCACHE` 路径，需 `go mod tidy` 触发
->   - `go get <包名>`：
+>   - `go get &lt;包名&gt;`：
 >     - 下载代码源码到本地缓存，并把记录写进 `go.mod` 账本里，用于在业务代码里 `import` 调用
 >     - 撤销时需要移除项目代码中，对于该包的所有引用，然后运行 `go mod tidy`
 > - Protubuf

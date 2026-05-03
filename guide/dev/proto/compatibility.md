@@ -128,8 +128,8 @@ enum Severity {
 例子：
 
 ```text
-dropped_packets_per_sec 继续作为 NetworkMetric
-packet_drop_with_stack 新增为 NetworkEvent
+NETWORK_METRIC_KIND_PACKET_DROPS 继续作为 NetworkMetric
+NETWORK_EVENT_KIND_PACKET_DROP 新增为 NetworkEvent 证据
 ```
 
 这样 Server 的滑动窗口和事件队列都能稳定演进。
