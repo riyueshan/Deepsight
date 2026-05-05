@@ -38,7 +38,8 @@ export default defineConfig({
               items: [
                 { text: "项目概览", link: "/guide/overview" },
                 { text: "快速开始", link: "/guide/quick-start" },
-                { text: "安装说明", link: "/guide/install" }
+                { text: "安装说明", link: "/guide/install" },
+                { text: "用户配置", link: "/guide/config" }
               ]
             },
             {
@@ -48,6 +49,7 @@ export default defineConfig({
                 { text: "开发环境", link: "/guide/dev-setup" },
                 { text: "配置系统", link: "/guide/dev/config" },
                 { text: "Hello-Arch 架构", link: "/guide/dev/hello-arch" },
+                { text: "Probe API 接入", link: "/guide/dev/probe-api" },
                 { text: "Probe 测试框架", link: "/guide/dev/probe-test" },
                 { text: "Agent 开发指南", link: "/guide/agent-guide" },
                 {
@@ -60,6 +62,7 @@ export default defineConfig({
                     { text: "兼容性规则", link: "/guide/dev/proto/compatibility" }
                   ]
                 },
+                { text: "Release 发布流程", link: "/guide/dev/release" },
                 { text: "站点维护", link: "/guide/site-maintenance" }
               ]
             }

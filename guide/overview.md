@@ -10,7 +10,7 @@
 
 为保证系统的极致性能与大模型推理的连贯性，Deepsight 采用了 C/S 物理架构。底层探针专注高效数据提取与安全熔断，服务端作为复合型有状态守护进程，专注连接管理、记忆存储与 AI 协议转换。
 
-<img src="/assets/deepsight-arch.drawio.png" alt="Deepsight-arch.drawio" style="zoom:50%;" />
+<img src="/assets/deepsight-arch.drawio.png" alt="Deepsight-arch.drawio" style="zoom: 25%;" />
 
 ### Deepsight Probe
 

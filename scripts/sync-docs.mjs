@@ -24,6 +24,8 @@ const publicDocs = [
   [path.join("dev", "hello-arch.md"), path.join("guide", "dev", "hello-arch.md")],
   [path.join("dev", "config.md"), path.join("guide", "dev", "config.md")],
   [path.join("dev", "probe-test.md"), path.join("guide", "dev", "probe-test.md")],
+  [path.join("dev", "probe-api.md"), path.join("guide", "dev", "probe-api.md")],
+  [path.join("dev", "release.md"), path.join("guide", "dev", "release.md")],
   [path.join("dev", "proto", "proto.md"), path.join("guide", "dev", "proto", "proto.md")],
   [path.join("dev", "proto", "telemetry-bus.md"), path.join("guide", "dev", "proto", "telemetry-bus.md")],
   [path.join("dev", "proto", "module-payloads.md"), path.join("guide", "dev", "proto", "module-payloads.md")],
@@ -38,7 +40,8 @@ const publicDocs = [
   [path.join("modules", "storage-probe.md"), path.join("guide", "modules", "storage-probe.md")],
   [path.join("modules", "storage-grpc.md"), path.join("guide", "modules", "storage-grpc.md")],
   [path.join("dev", "site.md"), "guide/site-maintenance.md"],
-  [path.join("use", "install.md"), "guide/install.md"]
+  [path.join("use", "install.md"), "guide/install.md"],
+  [path.join("use", "config.md"), "guide/config.md"]
 ];
 
 const localDocs = [
@@ -72,6 +75,8 @@ function rewriteMarkdown(content, sourcePath, mapping) {
     .replace(/\]\(\.\.\/assets\//g, "](/assets/")
     .replace(/<img src="\.\/assets\//g, '<img src="/assets/')
     .replace(/<img src="\.\.\/assets\//g, '<img src="/assets/');
+
+  rewritten = rewritten.replace(/\[([^\]]+)\]\(([^)#?]+\.proto)\)/g, "`$1`");
 
   rewritten = rewritten.replace(/\]\(([^)#?]+)\)/g, (match, rawLink) => {
     if (!rawLink.endsWith(".md")) {

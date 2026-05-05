@@ -17,6 +17,7 @@ DeepsightWebsite/      # GitHub 官网仓库
 ├── guide/             # 从 Deepsight/docs 同步出的公开文档副本
 ├── public/assets/     # 从 Deepsight/docs/assets 同步出的公开图片副本
 ├── public/brand/      # 官网品牌资源
+├── Releases           # GitHub Releases 承载公开二进制 artifact，不进入 Git 历史
 ├── scripts/           # 文档同步脚本
 ├── .vitepress/        # VitePress 配置与主题
 └── .github/workflows/ # GitHub Pages 自动部署
@@ -25,6 +26,9 @@ DeepsightWebsite/      # GitHub 官网仓库
 - `Deepsight/docs/` 是唯一文档真源，日常文档修改只在这里进行。
 - `DeepsightWebsite/guide/` 是公开网站副本，由同步脚本生成后提交到 GitHub。
 - `DeepsightWebsite/public/assets/` 是公开图片副本，由同步脚本从 `docs/assets/` 生成后提交到 GitHub。
+- `DeepsightWebsite` 的 GitHub Releases 可用于发布 `deepsight-probe`、`deepsight-server`
+  等预构建二进制 artifact、checksum 和版本说明；打包和上传流程见
+  [Release 打包与发布流程](/guide/dev/release)。
 - `DeepsightWebsite` 不包含 Go 源码、eBPF 源码、私有配置或主仓库完整历史。
 
 ## 2. 公开边界
@@ -42,7 +46,9 @@ const publicDocs = [
   ["05_MCP-integration.md", "guide/mcp-integration.md"],
   ["dev/quick-start.md", "guide/quick-start.md"],
   ["dev/setup.md", "guide/dev-setup.md"],
-  ["use/install.md", "guide/install.md"]
+  ["dev/release.md", "guide/dev-release.md"],
+  ["use/install.md", "guide/install.md"],
+  ["use/config.md", "guide/config.md"]
 ];
 ```
 
@@ -95,10 +101,33 @@ git push origin main
 - `node_modules/`
 - `.vitepress/cache/`
 - `.vitepress/dist/`
+- `deepsight-probe`、`deepsight-server` 等发布二进制
 - 任何来自 Deepsight 主仓库的 Go、eBPF、proto 实现源码
 - 未经筛选的内部文档
 
-## 5. 自定义域名
+## 5. 二进制发布边界
+
+`DeepsightWebsite` 仓库可以作为公开下载入口，但二进制不应提交到网站源码目录。
+推荐使用 GitHub Releases 管理公开 artifact：
+
+```text
+Deepsight private source repo
+  -> CI build deepsight-server / deepsight-probe
+  -> publish artifacts + checksums to DeepsightWebsite GitHub Releases
+  -> DeepsightWebsite guide links to the release download page
+```
+
+发布原则：
+
+- Probe 和 Server 是同一 Deepsight release 的配套组件，推荐同版本下载和部署。
+- Release artifact 可以公开下载，但不要求公开 Deepsight 主源码。
+- 每个 release 应至少包含 `deepsight-linux-amd64-vX.Y.Z.tar.gz`、对应 `.sha256`
+  checksum 和版本说明。
+- 如果 artifact 只面向受控用户，不应使用公开 GitHub Releases；改用 private release、
+  私有对象存储或带鉴权的下载服务。
+- `DeepsightWebsite/guide/` 只放安装说明和下载链接，不存放二进制本体。
+
+## 6. 自定义域名
 
 自定义域名在 GitHub `DeepsightWebsite` 仓库的 Pages 设置中维护。Cloudflare 只负责 DNS 解析。
 
@@ -119,10 +148,11 @@ Proxy status: DNS only
 
 GitHub Pages 生成的 `CNAME` 文件应保留在 `DeepsightWebsite` 仓库根目录。
 
-## 6. 维护纪律
+## 7. 维护纪律
 
 - 主仓库 `Deepsight` 不放 `site/`、`.gitlab-ci.yml` 或网站部署脚本。
 - 文档真源只维护 `Deepsight/docs/`。
 - 公开网站副本只维护在 `DeepsightWebsite/guide/` 和 `DeepsightWebsite/public/assets/`。
+- 公开二进制只通过 GitHub Releases 或外部 artifact 服务发布，不提交进网站源码树。
 - 同步脚本必须显式控制公开范围，避免把内部文档发布到 GitHub。
 - 网站样式、首页、导航和品牌资源只在 `DeepsightWebsite` 中维护。
