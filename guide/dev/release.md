@@ -1,6 +1,6 @@
 # Release 打包与发布流程
 
-> 本文说明 Deepsight 预构建二进制发布包的设计、打包流程和推送到 `DeepsightWebsite`
+> 本文说明 Deepsight 预构建二进制发布包的设计、打包流程和推送到 GitHub 公开仓库 `riyueshan/Deepsight`
 > GitHub Releases 的方式。用户安装说明见[安装 Deepsight](/guide/install)，官网与文档站边界见[官网与文档站维护](/guide/site-maintenance)。
 
 ---
@@ -152,15 +152,16 @@ eBPF/Probe 真实加载验证仍需要 root 和目标内核环境。发布前如
 
 ## 六、推送到 GitHub Releases
 
-公开 artifact 由 `DeepsightWebsite` GitHub Releases 承载，网站仓库源码树只放文档站和下载链接，不提交二进制本体。
+公开 artifact 由 GitHub 公开仓库 `riyueshan/Deepsight` 的 GitHub Releases 承载，网站仓库源码树只放文档站和下载链接，不提交二进制本体。
 
 ### 6.1 使用 gh CLI
 
 前提：
 
 - 本地已安装 `gh`。
-- 已登录有权限发布 `DeepsightWebsite` release 的 GitHub 账号。
-- `OWNER/DeepsightWebsite` 替换为实际 GitHub owner 和仓库名。
+- 已登录有权限发布 `riyueshan/Deepsight` release 的 GitHub 账号。
+- `gh repo view riyueshan/Deepsight` 能正常返回仓库信息。
+- 如 owner 发生变化，将命令中的 `riyueshan/Deepsight` 替换为实际 GitHub owner 和仓库名。
 
 创建 release 并上传 artifact：
 
@@ -168,7 +169,7 @@ eBPF/Probe 真实加载验证仍需要 root 和目标内核环境。发布前如
 gh release create v0.1.0 \
   build/release/deepsight-linux-amd64-v0.1.0.tar.gz \
   build/release/deepsight-linux-amd64-v0.1.0.tar.gz.sha256 \
-  --repo OWNER/DeepsightWebsite \
+  --repo riyueshan/Deepsight \
   --title "Deepsight v0.1.0" \
   --notes-file /tmp/deepsight-v0.1.0-notes.md
 ```
@@ -179,17 +180,17 @@ gh release create v0.1.0 \
 gh release upload v0.1.0 \
   build/release/deepsight-linux-amd64-v0.1.0.tar.gz \
   build/release/deepsight-linux-amd64-v0.1.0.tar.gz.sha256 \
-  --repo OWNER/DeepsightWebsite \
+  --repo riyueshan/Deepsight \
   --clobber
 ```
 
-不要把 `build/release/*.tar.gz` 复制进 `DeepsightWebsite/guide/`、`public/` 或其他网站源码目录。
+不要把 `build/release/*.tar.gz` 复制进 GitHub 公开仓库的 `guide/`、`public/` 或其他网站源码目录。
 
 ### 6.2 手动网页发布
 
 也可以在 GitHub 网页操作：
 
-1. 打开 `DeepsightWebsite` 仓库。
+1. 打开 GitHub 公开仓库 `riyueshan/Deepsight`。
 2. 进入 Releases。
 3. Draft a new release。
 4. Tag 填写 `v0.1.0`。
@@ -208,17 +209,17 @@ gh release upload v0.1.0 \
 Private Deepsight source repo
   -> run tests
   -> make package VERSION=&lt;tag&gt;
-  -> upload tarball + checksum to DeepsightWebsite GitHub Releases
+  -> upload tarball + checksum to riyueshan/Deepsight GitHub Releases
 
-DeepsightWebsite repo
+riyueshan/Deepsight GitHub public repo
   -> GitHub Pages builds docs site
   -> Release page serves binary artifacts
 ```
 
 CI 需要的 secret：
 
-- GitHub token，最小权限应能对 `DeepsightWebsite` 创建 release 和上传 artifact。
-- 不应把 Deepsight 主源码、Go/eBPF/proto 实现源码复制到 `DeepsightWebsite`。
+- GitHub token，最小权限应能对 GitHub 公开仓库 `riyueshan/Deepsight` 创建 release 和上传 artifact。
+- 不应把 Deepsight 主源码、Go/eBPF/proto 实现源码复制到 GitHub 公开仓库。
 
 CI 触发建议：
 
