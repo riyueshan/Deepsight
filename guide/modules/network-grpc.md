@@ -16,8 +16,9 @@ gRPC 边界有两条路径：
 - **控制面**：Bob 侧上层把诊断意图转换为受控 `TaskRequest`；Alice 侧 Probe 负责校验、执行并返回 `TaskResponse`。
 
 当前代码已经实现 Alice-side Probe TaskChannel client/executor；Bob-owned Server
-TaskChannel 仍明确返回 `Unimplemented`。本文描述 Probe 与 gRPC 接入层之间的
-Bob-facing 契约，不规定 Server 内部任务系统。
+默认关闭 TaskChannel 时明确返回 `Unimplemented`，显式启用后提供 B2 hello-gated
+stream skeleton。本文描述 Probe 与 gRPC 接入层之间的 Bob-facing 契约，不规定
+Server 内部任务系统、ticket 或 MCP Tool。
 
 ---
 
@@ -89,7 +90,7 @@ Bob-side diagnostic request
 -> Bob-side consumer
 ```
 
-推荐 `task_type`：
+当前已接受 `task_type`：
 
 - `trace_network_drops`
 - `trace_tcp_retransmits`

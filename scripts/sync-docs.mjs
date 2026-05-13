@@ -23,9 +23,12 @@ const publicDocs = [
   [path.join("dev", "arch.md"), "guide/engineering-arch.md"],
   [path.join("dev", "hello-arch.md"), path.join("guide", "dev", "hello-arch.md")],
   [path.join("dev", "config.md"), path.join("guide", "dev", "config.md")],
+  [path.join("dev", "claude-code-mcp.md"), path.join("guide", "dev", "claude-code-mcp.md")],
+  [path.join("dev", "install-from-source.md"), path.join("guide", "dev", "install-from-source.md")],
   [path.join("dev", "probe-test.md"), path.join("guide", "dev", "probe-test.md")],
   [path.join("dev", "probe-api.md"), path.join("guide", "dev", "probe-api.md")],
   [path.join("dev", "release.md"), path.join("guide", "dev", "release.md")],
+  [path.join("dev", "server-test.md"), path.join("guide", "dev", "server-test.md")],
   [path.join("dev", "proto", "proto.md"), path.join("guide", "dev", "proto", "proto.md")],
   [path.join("dev", "proto", "telemetry-bus.md"), path.join("guide", "dev", "proto", "telemetry-bus.md")],
   [path.join("dev", "proto", "module-payloads.md"), path.join("guide", "dev", "proto", "module-payloads.md")],
@@ -39,9 +42,17 @@ const publicDocs = [
   [path.join("modules", "storage.md"), path.join("guide", "modules", "storage.md")],
   [path.join("modules", "storage-probe.md"), path.join("guide", "modules", "storage-probe.md")],
   [path.join("modules", "storage-grpc.md"), path.join("guide", "modules", "storage-grpc.md")],
+  [path.join("server", "server.md"), path.join("guide", "server", "server.md")],
+  [path.join("server", "grpc.md"), path.join("guide", "server", "grpc.md")],
+  [path.join("server", "memory.md"), path.join("guide", "server", "memory.md")],
+  [path.join("server", "mcp.md"), path.join("guide", "server", "mcp.md")],
   [path.join("dev", "site.md"), "guide/site-maintenance.md"],
   [path.join("use", "install.md"), "guide/install.md"],
-  [path.join("use", "config.md"), "guide/config.md"]
+  [path.join("use", "config.md"), "guide/config.md"],
+  [path.join("use", "distributed-deploy.md"), path.join("guide", "use", "distributed-deploy.md")],
+  [path.join("use", "llm-quick-start.md"), path.join("guide", "use", "llm-quick-start.md")],
+  [path.join("use", "manual-run.md"), path.join("guide", "use", "manual-run.md")],
+  [path.join("use", "single-node-demo.md"), path.join("guide", "use", "single-node-demo.md")]
 ];
 
 const localDocs = [
@@ -77,6 +88,8 @@ function rewriteMarkdown(content, sourcePath, mapping) {
     .replace(/<img src="\.\.\/assets\//g, '<img src="/assets/');
 
   rewritten = rewritten.replace(/\[([^\]]+)\]\(([^)#?]+\.proto)\)/g, "`$1`");
+  rewritten = rewritten.replace(/\[([^\]]+)\]\(([^)#?]*\.agent\/[^)#?]+\.md)\)/g, "`$1`");
+  rewritten = rewritten.replace(/\[([^\]]+)\]\(([^)#?]*report\/[^)#?]+)\)/g, "`$1`");
 
   rewritten = rewritten.replace(/\]\(([^)#?]+)\)/g, (match, rawLink) => {
     if (!rawLink.endsWith(".md")) {

@@ -20,8 +20,10 @@ Alice/Probe 侧保证：
 
 Bob/Server 侧需要实现或处理：
 
-- 接收 `Register`，返回非空 `session_token`。
-- 接收 `PushTelemetry` client stream，按 wrapper oneof 分发模块 payload。
+- 接收 `Register`，校验 `node_id` 非空，并返回非空、非固定的 `session_token`。
+- 同一 `node_id` 重复注册时，新的 session 成为 active session；旧 session 后续上报应被拒绝。
+- 接收 `PushTelemetry` client stream，先校验 active `session_token`，再按 wrapper oneof 分发模块 payload。
+- `TelemetryAck.received_count` 是成功处理的 batch 数；dispatcher 或 sink 失败的 batch 不能计入 ack。
 - 保留 `EventWrapper.truncated_count`，不要把被 Probe 截断的事件风暴误判成单个事件。
 - 当前如未实现 TaskChannel，应明确返回 gRPC `Unimplemented`。
 - 后续实现 TaskChannel 时，只下发 proto 已接受、Probe 配置白名单允许的任务。
@@ -36,7 +38,7 @@ Bob/Server 侧需要实现或处理：
 service DeepsightGateway {
   rpc Register(RegisterRequest) returns (RegisterResponse) {}
   rpc PushTelemetry(stream TelemetryBatch) returns (TelemetryAck) {}
-  rpc TaskChannel(stream TaskResponse) returns (stream TaskRequest) {}
+  rpc TaskChannel(stream TaskChannelUpstream) returns (stream TaskChannelDownstream) {}
 }
 ```
 
@@ -44,9 +46,17 @@ service DeepsightGateway {
 | --- | --- | --- | --- |
 | `Register` | unary | 已可用 | 返回非空 `session_token` |
 | `PushTelemetry` | client streaming | 主数据面已可用 | 持续接收 batch，按 oneof 分发 |
-| `TaskChannel` | bidirectional streaming | Probe executor 已实现，当前 Server 返回 `Unimplemented` | 未实现时显式失败；实现后按白名单下发任务 |
+| `TaskChannel` | bidirectional streaming | Probe executor 已实现；Server 默认关闭返回 `Unimplemented`，显式启用后进入 B2 hello-gated skeleton | 未启用时显式失败；启用后按 hello/session gate 和 accepted task 边界下发任务 |
 
-Probe exporter 会先调用 `Register`，再打开 `PushTelemetry`。如果配置了 Task executor，Probe 也会尝试打开 `TaskChannel`；当 Server 返回 `Unimplemented` 时，Probe 记录 warning 并继续上报数据面。
+Probe exporter 会先调用 `Register`，再打开 `PushTelemetry`。如果配置了 Task executor，Probe 也会尝试打开 `TaskChannel`；打开后首帧发送 `TaskChannelHello`，其中携带 `node_id`、`session_token`、Probe 版本和已启用模块。当 Server 默认关闭并返回 `Unimplemented` 时，Probe 记录 warning 并继续上报数据面。
+
+当前 wire shape 以 `proto/v1/telemetry.proto` 为准：
+
+```protobuf
+rpc TaskChannel(stream TaskChannelUpstream) returns (stream TaskChannelDownstream) {}
+```
+
+这是当前分支内的 lockstep breaking replacement，不支持旧 stream shape fallback 或混合版本 Probe/Server。
 
 ---
 
@@ -66,11 +76,13 @@ message RegisterResponse {
 
 Bob 端最低要求：
 
+- 校验 `node_id` 非空；空值应返回 `InvalidArgument`。
 - 接收并记录 `node_id`、`kernel_version`。
-- 返回非空 `session_token`。Probe 会把该 token 注入后续 `TelemetryBatch.session_token`。
+- 返回非空、非固定 `session_token`。Probe 会把该 token 注入后续 `TelemetryBatch.session_token`。
+- 同一 node 重新注册会刷新 active session，旧 session 不再被数据面接受。
 - `pre_defined_dict` 当前预留，Bob 端不应要求其非空。
 
-当前示例 Server 返回固定 token。生产实现可以生成真实 session，但不能返回空字符串。
+Server 可以按自身 session 策略生成 token，但不能返回空字符串或可预测常量。
 
 ---
 
@@ -88,12 +100,15 @@ message TelemetryBatch {
 
 Bob 端处理规则：
 
-- `session_token` 来自 `RegisterResponse`，可用于关联 Probe 会话。
+- `session_token` 来自 `RegisterResponse`，必须用于关联 Probe 会话。空 token 应返回
+  `InvalidArgument`，unknown/stale token 应返回 `Unauthenticated` 或等价明确认证错误。
 - `base_timestamp_ns` 是 batch 基准时间。
 - 每条 wrapper 的 `time_offset_ns` 是相对 batch 基准的偏移。
 - `metrics` 承载连续状态，适合进入热窗口或聚合路径。
 - `spontaneous_events` 承载异常证据，适合进入事件、防抖、ticket 或 MCP 上下文路径。
 - `incremental_dict` 当前预留；Bob 端必须允许其为空。
+- Bob 端应计算并保留 `base_timestamp_ns + time_offset_ns` 的内部绝对时间。
+- 当前 B1 数据面使用保守 batch ack：一个 batch 内任一关键 envelope 构建、dispatcher 或 sink 写入失败，整个 batch 不计入 `received_count`。
 
 ### 4.1 MetricWrapper
 
@@ -260,6 +275,36 @@ event_kind + reason_class + cgroup_id + comm
 ## 六、TaskChannel 控制面
 
 ```protobuf
+message TaskChannelUpstream {
+  oneof payload {
+    TaskChannelHello hello = 1;
+    TaskResponse response = 2;
+    TaskChannelHeartbeat heartbeat = 3;
+  }
+}
+
+message TaskChannelDownstream {
+  oneof payload {
+    TaskRequest request = 1;
+    TaskChannelAck ack = 2;
+  }
+}
+
+message TaskChannelHello {
+  string node_id = 1;
+  string session_token = 2;
+  string probe_version = 3;
+  repeated string enabled_modules = 4;
+}
+
+message TaskChannelHeartbeat {
+  uint64 monotonic_time_ns = 1;
+}
+
+message TaskChannelAck {
+  string message = 1;
+}
+
 message TaskRequest {
   string task_id = 1;
   deepsight.common.Action action = 2;
@@ -353,20 +398,28 @@ Process executor 支持多个并发任务，数量由 Probe 配置 `max_concurre
 
 ---
 
-## 七、当前 Server 接入注意事项
+### 6.5 Envelope gate
 
-当前仓库中的 Bob-owned Server 最小实现状态：
+`TaskRequest` / `TaskResponse` 的业务字段和模块 payload 语义保持不变，但 stream 消息外层是：
 
-- `Register` 可用。
-- `PushTelemetry` 可用，并转交 dispatcher。
-- `TaskChannel` 明确返回 gRPC `Unimplemented`。
+- upstream：`hello`、`response`、`heartbeat`
+- downstream：`request`、`ack`
 
-因此 Bob 端继续开发时可以分两步：
+Server 端实现 gate：
+
+- hello 必须是首个 upstream message。
+- 缺失 hello、非 hello 首帧、缺失 token、unknown session、stale session 或 node mismatch 必须明确失败。
+- hello 校验成功前不得下发 request。
+- 后续 response 按 `task_id` 进入 TaskState。
+
+## 七、Server 接入注意事项
+
+Bob 端继续开发时可以分两步：
 
 1. 先完成数据面消费：`Register` + `PushTelemetry` + wrapper oneof 分发。
 2. 再实现控制面：维护 TaskChannel stream、下发 `TaskRequest`、接收并关联 `TaskResponse`。
 
-实现 TaskChannel 前，不要在用户界面或 MCP Tool 中展示“任务已下发”的语义。应把 `Unimplemented` 明确暴露为控制面暂不可用。
+实现 TaskChannel 前，不要在用户界面或 MCP Tool 中展示“任务已下发”的语义。未实现时应把 `Unimplemented` 明确暴露为控制面暂不可用。当前具体 Server 实现状态以 `.agent/state/context.md` 为入口，不在本文维护。
 
 ---
 

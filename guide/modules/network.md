@@ -27,7 +27,7 @@
 - **已经落地的网络数据面**：`NetworkMetric` 已从 Hello 阶段最小壳演进为强字段契约；Probe 已具备网络 eBPF 程序、网络 loader、网络 raw event ABI、`Module = "network"` transformer 分支、`probe.modules.network` 配置解析，以及 Server network metric/event 日志。
 - **已经验证的网络链路**：Portable Metrics 和 N2 常驻 Event Evidence 均已通过 TCP 与 UDS 两条传输路径完成真实 eBPF attach/load 验证。当前能够上报 TCP 状态、活跃连接、connect error、重传和丢包 Metric，并能上报 `tcp_connect_failed`、`tcp_retransmit_burst`、`packet_drop` 三类 Event。
 - **已经验证的资源保护**：N2 已验证 BPF 粗限流、transformer token bucket 和 `EventWrapper.truncated_count` 高频截断语义。
-- **已经补齐的控制面底座**：N3 已实现 Alice-side Probe TaskChannel client/executor，能按白名单执行网络 trace/metric 任务；Bob-owned Server TaskChannel 仍保持 `Unimplemented`。
+- **已经补齐的控制面底座**：N3 已实现 Alice-side Probe TaskChannel client/executor，能按白名单执行网络 trace/metric 任务；Bob-owned Server 默认关闭 TaskChannel 时返回 `Unimplemented`，显式启用后提供 B2 hello-gated stream skeleton。
 - **已经具备的 data-plane metrics**：N4 已实现显式启用的 TCX ingress/egress
   interface bytes/packets delta，上报为 `MetricWrapper{network}`。
 - **当前完成口径**：Alice-owned Network Collector 当前范围到 N4 为止已经完成；这是

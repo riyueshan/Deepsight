@@ -25,8 +25,10 @@ proto/
 │   └── common.proto          # 基础类型 (TaskID, 全局枚举如 Severity)
 ├── modules/
 │   ├── network.proto         # 网络专属载荷: NetworkMetric, NetworkEvent
-│   └── storage.proto         # 存储专属载荷: StorageMetric, StorageEvent
-└── deepsight_rpc.proto       # 核心网关入口: 负责总线通信，使用 oneof 联合各业务模块
+│   ├── storage.proto         # 存储专属载荷: StorageMetric, StorageEvent
+│   └── process.proto         # 进程专属载荷: ProcessMetric, ProcessEvent
+└── v1/
+    └── telemetry.proto       # 核心网关入口: 负责总线通信，使用 oneof 联合各业务模块
 ```
 
 ## 入口契约
@@ -39,9 +41,10 @@ package deepsight.v1;
 
 import "common/common.proto";
 import "modules/network.proto";
+import "modules/process.proto";
 import "modules/storage.proto";
 
-service ProbeAgent {
+service DeepsightGateway {
   // 阶段 0：握手认证 (获取 Token 与初始化字典)
   rpc Register(RegisterRequest) returns (RegisterResponse);
 
@@ -49,29 +52,26 @@ service ProbeAgent {
   rpc PushTelemetry(stream TelemetryBatch) returns (TelemetryAck);
 
   // 阶段 2：控制面指令通道 (双向流)
-  rpc TaskChannel(stream TaskResponse) returns (stream TaskRequest);
+  rpc TaskChannel(stream TaskChannelUpstream) returns (stream TaskChannelDownstream);
 }
 ```
 
-### 动态字典与握手阶段
-
 ### 状态一致性与会话管理
 
-为了在网络闪断或进程重启时保持 ID 映射的一致性，通信层引入了基于 Session 的隔离机制：
+为了在网络闪断或进程重启时保持连接状态可解释，通信层引入了基于 Session 的隔离机制。当前 wire contract 已包含字典字段，但完整 dictionary compression / wire closure 仍是后续能力；Server 不能假设字典字段必然非空。
 
-- **全量字典同步**：每当连接建立（`Register` 阶段），Probe 必须上报其当前内存中完整的所有字典映射（包括预定义与运行中新增的）
-- **Session 隔离**：Server 接收到注册请求后，会颁发全新的 `session_token`，Server 内存中会维护该 Token 对应的专属字典快照
-- **安全覆盖策略**：若发生重连，Server 会直接使用新 Session 的字典覆盖旧有的活跃字典映射。这种覆盖是安全的，因为旧 Session 产生的数据在存入持久化层前已完成翻译，不再依赖原始 ID。
+- **Session 隔离**：Server 接收到注册请求后，应颁发非空 `session_token`，并用该 token 关联后续 `TelemetryBatch`。
+- **字典字段边界**：`pre_defined_dict` 和 `incremental_dict` 是总线预留字段；Bob 端必须允许它们为空。
+- **持久化要求**：未来若启用 dictionary compression，Server 必须先完成语义重组，再把事件或任务结果持久化为自包含明文对象。
 
 ```protobuf
 message RegisterRequest {
   string node_id = 1;               // 机器唯一标识
   string kernel_version = 2;        // 宿主机内核版本
-  
-  // Probe 启动时预先注册的静态字符串字典（例如常见的报错名、基础调用栈）
-  // 格式：{ 1: "tcp_drop", 2: "kfree_skb", 3: "OOM_KILLER" }
-  // Server 会将其保存在内存中，用于后续的高效反向翻译
-  map<uint32, string> pre_defined_dict = 3; 
+
+  // 预留：Probe 启动时可同步的静态字符串字典。
+  // 当前 consumer 必须允许其为空；完整字典生命周期是后续能力。
+  map<uint32, string> pre_defined_dict = 3;
 }
 
 message RegisterResponse {
@@ -83,43 +83,45 @@ message RegisterResponse {
 
 ```protobuf
 message TelemetryBatch {
-  string session_token = 1;         
-  
+  string session_token = 1;
+
   // Delta 压缩基准时间
-  uint64 base_timestamp_ns = 2;     
+  uint64 base_timestamp_ns = 2;
 
   // 常态指标集合
-  repeated MetricWrapper metrics = 3; 
+  repeated MetricWrapper metrics = 3;
 
   // 突发事件集合
-  repeated EventWrapper spontaneous_events = 4; 
-  
-  // 运行中动态发现的新字符串（增量字典同步）
-  // 如果 Probe 抓到了一个字典里没有的新堆栈，分配新 ID 并在这里同步给 Server
-  map<uint32, string> incremental_dict = 5; 
+  repeated EventWrapper spontaneous_events = 4;
+
+  // 预留：运行中动态发现的新字符串增量字典。
+  // 当前 consumer 必须允许其为空。
+  map<uint32, string> incremental_dict = 5;
 }
 
 message MetricWrapper {
   uint32 time_offset_ns = 1; // 相对基准的偏移量
-  
+
   // 强类型联合体：明确区分不同子系统的指标载荷
   oneof payload {
-    modules.NetworkMetric network = 2; 
-    modules.StorageMetric storage = 3; 
+    modules.NetworkMetric network = 2;
+    modules.StorageMetric storage = 3;
+    modules.ProcessMetric process = 4;
   }
 }
 
 message EventWrapper {
   uint32 time_offset_ns = 1;
-  common.Severity level = 2; 
-  
+  common.Severity level = 2;
+
   // 发生边缘熔断时，附加的被截断的同质化事件数量
   uint32 truncated_count = 3;
-  
+
   // 强类型联合体：包含已被 Server 字典解析准备好的明文事件载荷
   oneof payload {
     modules.NetworkEvent network = 4;
     modules.StorageEvent storage = 5;
+    modules.ProcessEvent process = 6;
   }
 }
 ```
@@ -130,19 +132,20 @@ message EventWrapper {
 message TaskRequest {
   string task_id = 1;       // 大模型任务关联 ID
   common.Action action = 2; // e.g., ATTACH_TRACE, DETACH_TRACE
-  
+
   // 大模型下发的特定指令参数（如抓取网络、抓取内存）
   oneof command_args {
     modules.TraceNetworkArgs network_args = 3;
     modules.TraceStorageArgs storage_args = 4;
+    modules.TraceProcessArgs process_args = 5;
   }
 }
 
 message TaskResponse {
-  string task_id = 1;       
-  common.Status status = 2; 
-  string error_msg = 3;     
-  
+  string task_id = 1;
+  common.Status status = 2;
+  string error_msg = 3;
+
   // 捕获到的病理事件数组
   repeated EventWrapper trace_results = 4;
 
@@ -150,6 +153,24 @@ message TaskResponse {
   repeated MetricWrapper metric_results = 5;
 }
 ```
+
+### TaskChannel envelope gate
+
+当前 TaskChannel wire shape 是显式 stream envelope：
+
+```protobuf
+rpc TaskChannel(stream TaskChannelUpstream) returns (stream TaskChannelDownstream);
+```
+
+该变更是当前分支内的 lockstep breaking replacement；不支持旧 stream shape fallback，也不支持混合版本 Probe/Server。
+
+Envelope gate 要求：
+
+- Probe 打开 TaskChannel 后首帧必须是 `TaskChannelHello`。
+- Server 在 hello 校验成功前不得下发 `TaskRequest`。
+- hello 必须携带 `node_id` 和 `session_token`，Server 用它绑定 active session。
+- 缺失 hello、非 hello 首帧、缺失 token、unknown session、stale session 或 node mismatch 必须明确关闭 stream。
+- 后续 `TaskResponse` 按 `task_id` 进入 TaskState，不重复携带 node/session。
 
 ## 进阶架构
 

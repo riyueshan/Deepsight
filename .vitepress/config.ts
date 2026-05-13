@@ -22,98 +22,115 @@ export default defineConfig({
       {
         text: "文档",
         link: "/guide/overview",
-        activeMatch: "^/guide/(overview|install|agent-guide|dev-setup|site-maintenance|data-pipeline|rpc-contract|server-state|mcp-integration|engineering-arch|dev|modules)(/|$)"
+        activeMatch: "^/guide/(overview|install|config|agent-guide|dev-setup|site-maintenance|data-pipeline|rpc-contract|server-state|mcp-integration|engineering-arch|dev|modules|server|use)(/|$)"
       },
       { text: "GitHub", link: "https://github.com/riyueshan/deepsight" }
     ],
     sidebar: {
       "/guide/": [
         {
-          text: "入门",
+          text: "概览",
           collapsed: false,
           items: [
             {
-              text: "开始使用",
+              text: "项目概览",
               collapsed: false,
               items: [
                 { text: "项目概览", link: "/guide/overview" },
-                { text: "快速开始", link: "/guide/quick-start" },
-                { text: "安装说明", link: "/guide/install" },
-                { text: "用户配置", link: "/guide/config" }
-              ]
-            },
-            {
-              text: "开发与维护",
-              collapsed: true,
-              items: [
-                { text: "开发环境", link: "/guide/dev-setup" },
-                { text: "配置系统", link: "/guide/dev/config" },
-                { text: "Hello-Arch 架构", link: "/guide/dev/hello-arch" },
-                { text: "Probe API 接入", link: "/guide/dev/probe-api" },
-                { text: "Probe 测试框架", link: "/guide/dev/probe-test" },
-                { text: "Agent 开发指南", link: "/guide/agent-guide" },
-                {
-                  text: "Protobuf 契约",
-                  collapsed: true,
-                  items: [
-                    { text: "设计总览", link: "/guide/dev/proto/proto" },
-                    { text: "Telemetry 总线", link: "/guide/dev/proto/telemetry-bus" },
-                    { text: "模块 Payload", link: "/guide/dev/proto/module-payloads" },
-                    { text: "兼容性规则", link: "/guide/dev/proto/compatibility" }
-                  ]
-                },
-                { text: "Release 发布流程", link: "/guide/dev/release" },
-                { text: "站点维护", link: "/guide/site-maintenance" }
+                { text: "架构总览", link: "/guide/data-pipeline" },
+                { text: "RPC 契约", link: "/guide/rpc-contract" },
+                { text: "服务端状态", link: "/guide/server-state" },
+                { text: "MCP 集成", link: "/guide/mcp-integration" }
               ]
             }
           ]
         },
         {
-          text: "设计",
+          text: "用户文档",
           collapsed: true,
           items: [
             {
-              text: "运行时链路",
+              text: "安装与部署",
               collapsed: false,
               items: [
-                { text: "数据流", link: "/guide/data-pipeline" },
-                { text: "RPC 契约", link: "/guide/rpc-contract" },
-                { text: "服务端状态", link: "/guide/server-state" },
-                { text: "MCP 集成", link: "/guide/mcp-integration" }
+                { text: "安装说明", link: "/guide/install" },
+                { text: "用户配置", link: "/guide/config" },
+                { text: "LLM 快速接入", link: "/guide/use/llm-quick-start" },
+                { text: "单机完整演示", link: "/guide/use/single-node-demo" },
+                { text: "分布式部署", link: "/guide/use/distributed-deploy" },
+                { text: "手工运行与调试", link: "/guide/use/manual-run" }
+              ]
+            }
+          ]
+        },
+        {
+          text: "开发文档",
+          collapsed: true,
+          items: [
+            {
+              text: "开发入门",
+              collapsed: false,
+              items: [
+                { text: "快速开始", link: "/guide/quick-start" },
+                { text: "开发环境", link: "/guide/dev-setup" },
+                { text: "配置系统", link: "/guide/dev/config" },
+                { text: "源码构建安装", link: "/guide/dev/install-from-source" },
+                { text: "Claude Code MCP 接入", link: "/guide/dev/claude-code-mcp" },
+                { text: "Agent 开发指南", link: "/guide/agent-guide" },
+                { text: "站点维护", link: "/guide/site-maintenance" }
               ]
             },
             {
-              text: "工程实现",
+              text: "开发专题",
               collapsed: true,
               items: [
+                { text: "Hello-Arch 架构", link: "/guide/dev/hello-arch" },
+                { text: "Probe API 接入", link: "/guide/dev/probe-api" },
+                { text: "Probe 测试框架", link: "/guide/dev/probe-test" },
+                { text: "Server 测试框架", link: "/guide/dev/server-test" },
+                { text: "Release 发布流程", link: "/guide/dev/release" }
+              ]
+            },
+            {
+              text: "Protobuf 契约",
+              collapsed: true,
+              items: [
+                { text: "设计总览", link: "/guide/dev/proto/proto" },
+                { text: "Telemetry 总线", link: "/guide/dev/proto/telemetry-bus" },
+                { text: "模块 Payload", link: "/guide/dev/proto/module-payloads" },
+                { text: "兼容性规则", link: "/guide/dev/proto/compatibility" }
+              ]
+            }
+          ]
+        },
+        {
+          text: "设计文档",
+          collapsed: true,
+          items: [
+            {
+              text: "运行时设计",
+              collapsed: false,
+              items: [
                 { text: "工程设计", link: "/guide/engineering-arch" },
-                {
-                  text: "网络模块",
-                  collapsed: true,
-                  items: [
-                    { text: "模块设计", link: "/guide/modules/network" },
-                    { text: "Probe 设计", link: "/guide/modules/network-probe" },
-                    { text: "gRPC 接入", link: "/guide/modules/network-grpc" }
-                  ]
-                },
-                {
-                  text: "进程模块",
-                  collapsed: true,
-                  items: [
-                    { text: "模块设计", link: "/guide/modules/process" },
-                    { text: "Probe 设计", link: "/guide/modules/process-probe" },
-                    { text: "gRPC 接入", link: "/guide/modules/process-grpc" }
-                  ]
-                },
-                {
-                  text: "存储模块",
-                  collapsed: true,
-                  items: [
-                    { text: "模块设计", link: "/guide/modules/storage" },
-                    { text: "Probe 设计", link: "/guide/modules/storage-probe" },
-                    { text: "gRPC 接入", link: "/guide/modules/storage-grpc" }
-                  ]
-                }
+                { text: "Server 总览", link: "/guide/server/server" },
+                { text: "gRPC 接入层", link: "/guide/server/grpc" },
+                { text: "记忆机制", link: "/guide/server/memory" },
+                { text: "MCP Layer", link: "/guide/server/mcp" }
+              ]
+            },
+            {
+              text: "模块设计",
+              collapsed: true,
+              items: [
+                { text: "网络模块", link: "/guide/modules/network" },
+                { text: "网络 Probe", link: "/guide/modules/network-probe" },
+                { text: "网络 gRPC", link: "/guide/modules/network-grpc" },
+                { text: "进程模块", link: "/guide/modules/process" },
+                { text: "进程 Probe", link: "/guide/modules/process-probe" },
+                { text: "进程 gRPC", link: "/guide/modules/process-grpc" },
+                { text: "存储模块", link: "/guide/modules/storage" },
+                { text: "存储 Probe", link: "/guide/modules/storage-probe" },
+                { text: "存储 gRPC", link: "/guide/modules/storage-grpc" }
               ]
             }
           ]

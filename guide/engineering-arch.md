@@ -22,7 +22,7 @@ Deepsight/
 │   ├── transformer/        # [用户态] 符号翻译、字典 ID 分配、令牌桶限流 (熔断保护)
 │   ├── executor/           # [下行执行] 监听 TaskChannel 追踪指令
 │   └── cmd/                # 探针入口程序
-├── server/                 # [中心] Deepsight 复合网关 (Go)
+├── server/                 # [中心] Deepsight 可信中枢 / Gateway (Go)
 │   ├── ingester/           # [接入层] gRPC 服务端，执行字典反向映射与语义延迟翻译
 │   ├── buffer/             # [记忆引擎] 冷热分级缓存 (纯内存 Metrics + 内嵌 KV 事件持久化)
 │   ├── mcp/                # [外交官] MCP 协议适配与大模型 Prompt 约束
@@ -43,6 +43,7 @@ Deepsight/
 - **状态一致性与会话隔离**：引入基于 `session_token` 的字典生命周期管理。面对进程重启或网络闪断，Probe 会在重连时上报全量字典；Server 端则通过安全覆盖当前活跃字典并颁发新会话 Token，完美解耦探针物理状态的脆弱性与历史数据的连贯性。
 - **边缘熔断保护**：在 `transformer` 模块强制引入令牌桶限流。当内核发生高频异常风暴时触发同质化事件截断，仅向上传递高价值样本与截断计数，确保宿主机 CPU 安全。
 - **长短任务智能调度**：MCP 交互基于耗时采取分流策略。短任务（<15s）采用同步阻塞模式直接返回闭环结果；长耗时任务（>15s）下发任务凭证（Ticket），配合 Prompt 强制约束 LLM 结束当前回合，稍后凭 Ticket 提取数据。
+- **南北向流量隔离**：Probe-facing 南向流量使用 gRPC over TCP/UDS 和 protobuf；LLM-facing 北向流量使用 MCP over Streamable HTTP 和 JSON-RPC。本地 IDE 调试通过独立 stdio adapter 桥接到 MCP Streamable HTTP 入口。
 - **双体探针架构**：Probe 采用 C + Go 的黄金组合。C 语言负责受限内核态的安全“采矿”，Go 语言负责用户态的符号翻译、字典压缩与高并发网络传输。
 
 ## 2. 项目管理
@@ -89,7 +90,7 @@ Deepsight 的交付物旨在实现 **“单一二进制分发、冷热状态自�
 ### 3.2 部署与网络关系
 
 - **权限受控**：Probe 必须以 `root` 权限运行，以满足 eBPF 挂载及内核符号表读取的需求。
-- **内向连接模型**：Probe 启动后主动出站连接 Server 的 gRPC 端口，完美适配 VPC 防火墙拦截外部流量的规则。Server 仅被动监听内部数据流并对外暴露受控的 MCP HTTP 接口。
+- **内向连接模型**：Probe 启动后主动出站连接 Server 的 gRPC 端口，完美适配 VPC 防火墙拦截外部流量的规则。Server 仅被动监听内部数据流，并通过独立的北向 MCP Streamable HTTP 入口向 LLM/MCP Client 暴露受控诊断面。
 
 ## 4. 实验性工程边界声明
 
@@ -104,7 +105,7 @@ Deepsight 的交付物旨在实现 **“单一二进制分发、冷热状态自�
     - **工程取舍**：采用简单的 Systemd 守护进程部署即可。暂不考虑 Kubernetes DaemonSet 容器化部署带来的权限提权 (`privileged`) 及命名空间穿透等繁杂问题。
 3. **安全与认证 (Zero-Friction Sec)**：
     - **gRPC 链路**：采用明文 TCP 传输，暂不引入 mTLS 双向认证。
-    - **MCP 接口**：暂不设立 API Key 或 JWT 鉴权，避免复杂的审计日志库。
+    - **MCP 接口**：暂不设立 API Key 或 JWT 鉴权，避免复杂的审计日志库；MCP Streamable HTTP 默认绑定 `127.0.0.1`，不兼容旧 HTTP+SSE transport。
     - **防御底线**：安全防御彻底依赖于 VPC 网络层隔离。Server 端的所有监听端口（gRPC 与 HTTP）必须在配置中严格绑定为内网 IP 或 `127.0.0.1`，严禁绑定 `0.0.0.0` 暴露至公网。
 4. **自身可观测性 (Log as Metrics)**：
     - **工程取舍**：暂不引入 Prometheus、Grafana 等重量级时序指标系统。

@@ -160,6 +160,25 @@ package deepsight.v1;
 
 Hello 阶段应尽量避免引入 `v2`，优先通过追加字段演进。
 
+### 6.1 当前分支 TaskChannel lockstep 例外
+
+默认规则仍然成立：已稳定发布契约中改变 RPC 流模式通常必须进入新版本，例如
+`proto/v2`。
+
+当前分支接受一次例外：将
+`TaskChannel(stream TaskResponse) returns (stream TaskRequest)` 替换为显式
+`TaskChannel(stream TaskChannelUpstream) returns (stream TaskChannelDownstream)`。
+
+例外条件：
+
+- 旧 TaskChannel stream shape 尚未作为已接受的稳定发布契约交付。
+- Bob-owned Server 端 TaskChannel 仍以未实现控制面处理，未形成稳定可用 Server 行为。
+- 变更必须在同一分支、同一 release 内同步 `proto/`、`api/`、Probe exporter、Server skeleton、E2E testutil 和 wire-facing docs。
+- 不新增 `V2` RPC 名称，不保留旧 stream shape，不识别旧 payload，不做双协议 fallback。
+- 不支持混合版本 Probe/Server；部署文档必须要求 Probe 和 Server 使用同一 release。
+
+这不是旧协议兼容策略，而是当前分支内的一次 lockstep breaking replacement。
+
 ---
 
 ## 七、生成与提交

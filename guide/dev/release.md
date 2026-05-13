@@ -1,7 +1,7 @@
 # Release 打包与发布流程
 
 > 本文说明 Deepsight 预构建二进制发布包的设计、打包流程和推送到 GitHub 公开仓库 `riyueshan/Deepsight`
-> GitHub Releases 的方式。用户安装说明见[安装 Deepsight](/guide/install)，官网与文档站边界见[官网与文档站维护](/guide/site-maintenance)。
+> GitHub Releases 的方式。用户安装说明见[安装 Deepsight](/guide/install)，官网与文档站边界见[官网与文档站维护](/guide/site-maintenance)，Claude Code 接入见[Claude Code MCP 接入](/guide/dev/claude-code-mcp)。
 
 ---
 
@@ -10,20 +10,25 @@
 Deepsight 的用户发布目标是预构建 tarball：
 
 ```text
-deepsight-linux-amd64-v0.1.0.tar.gz
-deepsight-linux-amd64-v0.1.0.tar.gz.sha256
+deepsight-linux-amd64-v0.2.0.tar.gz
+deepsight-linux-amd64-v0.2.0.tar.gz.sha256
 ```
 
 发布包包含同一 release 的配套组件：
 
 - `deepsight-server`
 - `deepsight-probe`
+- `deepsight-mcp-stdio`
+- `deepsight-init-client`
+- `install.sh`
 - 配置模板
+- preset 配置
+- Claude Code 客户端示例
 - systemd unit 模板
 - 包内 checksum
 - 安装 README
 
-Probe 和 Server 运行时分离，但 wire contract 来自同一 repo 的 `proto/`，所以发布时应同版本配套。不要只发布裸二进制，否则用户还需要手写配置、systemd unit 和安装路径。
+Probe 和 Server 运行时分离，但 wire contract 来自同一 repo 的 `proto/`，所以发布时必须同版本配套。当前 TaskChannel 契约已经完成 lockstep breaking replacement，不支持旧 stream shape 混用，也不支持混合版本 Probe/Server。不要只发布裸二进制，否则用户还需要手写配置、systemd unit 和安装路径。
 
 ---
 
@@ -51,6 +56,9 @@ Makefile
 职责：
 
 - `deploy/systemd/*.service`：发布包里的 systemd unit 模板。
+- `deploy/release/install.sh`：一键部署运行时脚本，只服务 release 包根目录布局。
+- `scripts/dev/install-from-build.sh`：源码仓库侧的开发者安装入口；将 `build/` staging 成
+  release 风格目录后，再调用 `deploy/release/install.sh`。
 - `deploy/release/README.txt`：发布包内的离线安装说明。
 - `scripts/release/package.sh`：组装已构建的二进制和模板文件。
 - `VERSION`：默认发布版本号，不带 `v` 前缀。
@@ -62,19 +70,35 @@ Makefile
 
 ## 三、打包产物结构
 
-运行 `make package VERSION=v0.1.0` 后，生成：
+运行 `make package VERSION=v0.2.0` 后，生成：
 
 ```text
 build/release/
-  deepsight-linux-amd64-v0.1.0.tar.gz
-  deepsight-linux-amd64-v0.1.0.tar.gz.sha256
-  deepsight-linux-amd64-v0.1.0/
+  deepsight-linux-amd64-v0.2.0.tar.gz
+  deepsight-linux-amd64-v0.2.0.tar.gz.sha256
+  deepsight-linux-amd64-v0.2.0/
     bin/
       deepsight-server
       deepsight-probe
+      deepsight-mcp-stdio
+      deepsight-init-client
+    install.sh
     configs/
       server.example.yaml
       probe.example.yaml
+    presets/
+      llm-quickstart/
+        server.yaml
+      single-node-demo/
+        server.yaml
+        probe.yaml
+      split-server/
+        server.yaml
+      split-probe/
+        probe.yaml
+    examples/
+      claude-code/
+        .mcp.json.example
     systemd/
       deepsight-server.service
       deepsight-probe.service
@@ -83,6 +107,20 @@ build/release/
 ```
 
 `checksums.txt` 是包内文件 checksum。`*.tar.gz.sha256` 是 GitHub Release 页面上用于校验 tarball 的 checksum。
+
+`install.sh` 面向常见 systemd 常驻部署：默认安装二进制到 `/usr/local/bin`、配置到
+`/etc/deepsight/`、状态目录到 `/var/lib/deepsight/`，并可通过 `--preset`
+直接选择 `llm-quickstart`、`single-node-demo`、`split-server`、`split-probe` 等场景，
+再通过参数覆盖 TCP 场景下的 gRPC/MCP 监听地址与是否自动启服。`single-node-demo`
+固定使用 UDS `/run/deepsight/grpc.sock` 连接 `server` 与 `probe`。该脚本只认
+release 包根目录布局，不直接理解源码仓库里的 `build/` / `deploy/` 结构。
+
+当前权限模型：
+
+- `--role server` / `--role all` 会自动创建 `deepsight` 系统用户/组，并让
+  `deepsight-server.service` 以该非 root 账号运行。
+- `--role probe` 仍按 root 路径部署 `deepsight-probe.service`，因为 Probe 真实运行需要
+  eBPF 加载/attach 权限。
 
 ---
 
@@ -99,7 +137,7 @@ make package
 
 ```bash
 . scripts/dev/env.sh
-make package VERSION=v0.1.0
+make package VERSION=v0.2.0
 ```
 
 `make package` 会执行：
@@ -110,13 +148,14 @@ make build
   -> make proto
   -> build/deepsight-probe
   -> build/deepsight-server
-scripts/release/package.sh v0.1.0 linux amd64
+  -> build/deepsight-mcp-stdio
+scripts/release/package.sh v0.2.0 linux amd64
 ```
 
 单独调用脚本也可以，但它只打包已存在的二进制，不会构建：
 
 ```bash
-scripts/release/package.sh v0.1.0 linux amd64
+scripts/release/package.sh v0.2.0 linux amd64
 ```
 
 如果缺少 `build/deepsight-server` 或 `build/deepsight-probe`，脚本会失败并提示先运行 `make build`。
@@ -131,9 +170,9 @@ scripts/release/package.sh v0.1.0 linux amd64
 bash -n scripts/release/package.sh
 . scripts/dev/env.sh
 make test
-make package VERSION=v0.1.0
+make package VERSION=v0.2.0
 cd build/release
-sha256sum -c deepsight-linux-amd64-v0.1.0.tar.gz.sha256
+sha256sum -c deepsight-linux-amd64-v0.2.0.tar.gz.sha256
 cd ../..
 ```
 
@@ -141,8 +180,8 @@ cd ../..
 
 ```bash
 mkdir -p /tmp/deepsight-release-check
-tar -xzf build/release/deepsight-linux-amd64-v0.1.0.tar.gz -C /tmp/deepsight-release-check
-cd /tmp/deepsight-release-check/deepsight-linux-amd64-v0.1.0
+tar -xzf build/release/deepsight-linux-amd64-v0.2.0.tar.gz -C /tmp/deepsight-release-check
+cd /tmp/deepsight-release-check/deepsight-linux-amd64-v0.2.0
 sha256sum -c checksums.txt
 ```
 
@@ -166,20 +205,20 @@ eBPF/Probe 真实加载验证仍需要 root 和目标内核环境。发布前如
 创建 release 并上传 artifact：
 
 ```bash
-gh release create v0.1.0 \
-  build/release/deepsight-linux-amd64-v0.1.0.tar.gz \
-  build/release/deepsight-linux-amd64-v0.1.0.tar.gz.sha256 \
+gh release create v0.2.0 \
+  build/release/deepsight-linux-amd64-v0.2.0.tar.gz \
+  build/release/deepsight-linux-amd64-v0.2.0.tar.gz.sha256 \
   --repo riyueshan/Deepsight \
-  --title "Deepsight v0.1.0" \
-  --notes-file /tmp/deepsight-v0.1.0-notes.md
+  --title "Deepsight v0.2.0" \
+  --notes-file /tmp/deepsight-v0.2.0-notes.md
 ```
 
 如果 release 已存在，只上传 artifact：
 
 ```bash
-gh release upload v0.1.0 \
-  build/release/deepsight-linux-amd64-v0.1.0.tar.gz \
-  build/release/deepsight-linux-amd64-v0.1.0.tar.gz.sha256 \
+gh release upload v0.2.0 \
+  build/release/deepsight-linux-amd64-v0.2.0.tar.gz \
+  build/release/deepsight-linux-amd64-v0.2.0.tar.gz.sha256 \
   --repo riyueshan/Deepsight \
   --clobber
 ```
@@ -193,10 +232,10 @@ gh release upload v0.1.0 \
 1. 打开 GitHub 公开仓库 `riyueshan/Deepsight`。
 2. 进入 Releases。
 3. Draft a new release。
-4. Tag 填写 `v0.1.0`。
+4. Tag 填写 `v0.2.0`。
 5. 上传：
-   - `deepsight-linux-amd64-v0.1.0.tar.gz`
-   - `deepsight-linux-amd64-v0.1.0.tar.gz.sha256`
+   - `deepsight-linux-amd64-v0.2.0.tar.gz`
+   - `deepsight-linux-amd64-v0.2.0.tar.gz.sha256`
 6. 在 release notes 中说明系统要求、checksum、已知限制和安装文档链接。
 
 ---
@@ -223,7 +262,7 @@ CI 需要的 secret：
 
 CI 触发建议：
 
-- 只在显式 tag，例如 `v0.1.0`，或手动 workflow dispatch 时发布。
+- 只在显式 tag，例如 `v0.2.0`，或手动 workflow dispatch 时发布。
 - 普通分支 push 只跑测试和构建，不发布公开 artifact。
 
 ---
@@ -231,12 +270,12 @@ CI 触发建议：
 ## 八、Release Notes 模板
 
 ```markdown
-# Deepsight v0.1.0
+# Deepsight v0.2.0
 
 ## Artifacts
 
-- deepsight-linux-amd64-v0.1.0.tar.gz
-- deepsight-linux-amd64-v0.1.0.tar.gz.sha256
+- deepsight-linux-amd64-v0.2.0.tar.gz
+- deepsight-linux-amd64-v0.2.0.tar.gz.sha256
 
 ## System Requirements
 
@@ -253,7 +292,17 @@ See the installation guide:
 ## Known Limitations
 
 - TLS/mTLS is not implemented; tls.enabled must be false.
-- Server TaskChannel is not complete yet.
+- The release tarball includes `deepsight-server`, `deepsight-probe`, and
+  `deepsight-mcp-stdio`; the stdio adapter is intended for local IDE/developer
+  MCP clients and bridges to the Server MCP Streamable HTTP endpoint.
+- TaskChannel control plane, in-memory TaskState/ticket, internal query DTOs,
+  MCP Streamable HTTP, Resources, Tools, Prompts, and stdio adapter are
+  implemented for the current preview baseline.
+- Task results and tickets remain volatile across Server restart.
+- `completion/complete`, resource subscription, and `logging/setLevel` remain
+  feature-disabled.
+- Probe and Server must come from the same release; mixed TaskChannel stream
+  shapes are not supported.
 - Pod/Container attribution is best-effort.
 ```
 

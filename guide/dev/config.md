@@ -24,6 +24,7 @@ internal/config/
 configs/
   probe.example.yaml
   server.example.yaml
+  presets/
 ```
 
 ---
@@ -56,13 +57,18 @@ Release 配置是交付模板，表达“推荐默认值”，不代表真实运
 
 - `configs/probe.example.yaml`
 - `configs/server.example.yaml`
+- `configs/presets/llm-quickstart/server.yaml`
+- `configs/presets/single-node-demo/server.yaml`
+- `configs/presets/single-node-demo/probe.yaml`
+- `configs/presets/split-server/server.yaml`
+- `configs/presets/split-probe/probe.yaml`
 
 模板职责：
 
-- 给新部署提供可复制的最小配置。
-- 明确默认 TCP 开发链路：`127.0.0.1:50051`。
+- 区分 release 预置场景与源码前台验证模板。
+- 明确分布式主路径使用 TCP，单机完整 preset 使用 UDS。
 - 明确 TLS 字段已经预留，但 Hello 阶段必须保持 `enabled: false`。
-- 明确模块启用状态：Hello 阶段默认只启用 `process` 健康检查链路。
+- 明确 MCP 默认绑定 `127.0.0.1:50052`。
 
 约束：
 
@@ -107,8 +113,8 @@ log:
   format: json
 
 modules:
-  network: false
-  storage: false
+  network: true
+  storage: true
   process: true
 
 transformer:
@@ -116,6 +122,23 @@ transformer:
 
 buffer:
   memory_window_size: 1024
+  metric_memory_window_size: 1024
+  metric_window_sec: 300
+  metric_max_samples_per_key: 300
+  metric_max_keys_per_kind: 100
+  metric_max_total_samples: 100000
+  metric_late_sample_tolerance_sec: 60
+  metric_future_tolerance_sec: 10
+  metric_overflow_bucket_enabled: true
+  event_queue_size: 4096
+  event_dedup_window_sec: 60
+  event_context_window_sec: 300
+  event_retention_hours: 24
+  event_max_records: 10000
+  event_disk_waterline_bytes: 67108864
+  event_persist_enabled: true
+  event_store_path: /var/lib/deepsight/deepsight-events.db
+  event_severity_eviction_enabled: true
 ```
 
 字段说明：
@@ -126,7 +149,24 @@ buffer:
 | `log.format` | 控制日志格式，支持 `json/text` | 增加日志采样与模块级日志 |
 | `modules.*` | 声明模块启用状态；Hello 阶段 `process=false` 会禁用 execve loader | 绑定完整模块 registry |
 | `transformer.rate_limit_enabled` | 令牌桶限流 stub；开启时只输出 warning | 引入真实限流参数 |
-| `buffer.memory_window_size` | 内存 buffer 上限 | 演进为滑动窗口、TTL、KV 配置 |
+| `buffer.memory_window_size` | legacy 内存 buffer 上限；设置时同步 Metric 容量默认值 | 后续保留兼容或迁移到细分配置 |
+| `buffer.metric_memory_window_size` | legacy Metric 容量兼容字段 | B3 后主路径使用 `buffer.metric_*` 热窗口配置 |
+| `buffer.metric_window_sec` | B3 Hot Metrics Window 查询/保留时间窗口 | 后续作为 B4 context snapshot 的默认窗口 |
+| `buffer.metric_max_samples_per_key` | 每个 canonical metric key 的 ring buffer 样本上限 | 可按查询成本继续收敛 |
+| `buffer.metric_max_keys_per_kind` | 每个 node/module/kind 的低基数 key 上限 | 超限时写入 overflow bucket |
+| `buffer.metric_max_total_samples` | 热指标窗口全局样本槽位上限 | 必须大于等于 per-key 上限 |
+| `buffer.metric_late_sample_tolerance_sec` | 超出热窗口后的迟到容忍秒数 | 超限 drop 并计数 |
+| `buffer.metric_future_tolerance_sec` | 未来时间戳容忍秒数 | 超限 drop 并计数 |
+| `buffer.metric_overflow_bucket_enabled` | 维度爆炸时是否折叠到 `dimension=overflow` | 关闭时超限新 key drop |
+| `buffer.event_queue_size` | B4 cold event 接收/持久化队列容量 | 记录总容量由 `event_max_records` 控制 |
+| `buffer.event_dedup_window_sec` | 同 fingerprint 冷事件合并窗口 | 超出窗口创建新 `ColdEventRecord` |
+| `buffer.event_context_window_sec` | 创建/升级/滚动冷事件时回看热指标的窗口 | B3 snapshot 失败不阻塞事件保存 |
+| `buffer.event_retention_hours` | 冷事件 TTL retention | 高严重度事件不会因 TTL 被优先删除 |
+| `buffer.event_max_records` | 冷事件记录总数上限 | 满载时按 severity-aware 策略淘汰或拒绝 |
+| `buffer.event_disk_waterline_bytes` | bbolt event store 文件水位线 | 达到水位线时触发淘汰或拒绝 |
+| `buffer.event_persist_enabled` | 是否启用 bbolt 冷事件持久化 | 默认开启；为 `true` 时 `event_store_path` 必填，打开失败则 Server 启动失败 |
+| `buffer.event_store_path` | bbolt 冷事件库路径 | 代码默认 `data/deepsight-events.db` 用于本地运行；仓库 example 配置也默认使用相对路径以降低首次前台验证门槛。systemd/长期运行部署应改成 `/var/lib/deepsight/deepsight-events.db` 一类持久绝对路径 |
+| `buffer.event_severity_eviction_enabled` | 容量压力下是否优先淘汰低 severity 事件 | 默认开启 |
 
 运行约束：
 
@@ -190,6 +230,17 @@ server:
 | `server.listen.network` | Server 监听类型，支持 `tcp` / `unix` |
 | `server.listen.address` | TCP 监听地址或 UDS socket 路径 |
 | `server.listen.tls.enabled` | TLS 开关；Hello 阶段启用会直接报错 |
+| `server.mcp.enabled` | 启用独立 MCP Streamable HTTP listener；默认 `false` |
+| `server.mcp.transport` | 当前只支持 `streamable_http` |
+| `server.mcp.listen.network` | MCP 监听类型；当前只支持 `tcp` |
+| `server.mcp.listen.address` | MCP TCP 监听地址，默认 `127.0.0.1:50052` |
+| `server.mcp.listen.tls.enabled` | TLS 开关；当前启用会直接报错 |
+| `server.mcp.max_client_sessions` | MCP session 上限 |
+| `server.mcp.request_timeout_ms` | MCP 请求超时上限（毫秒） |
+| `server.mcp.max_resource_items` | 单次 MCP Resource 读取的返回条数上限 |
+| `server.mcp.max_concurrent_tools` | MCP Tool 全局并发上限 |
+| `server.mcp.max_high_cost_tools_per_session` | 单个 MCP session 的高成本 Tool 并发上限 |
+| `server.mcp.max_response_bytes` | MCP Resource/Tool JSON 响应大小上限 |
 
 Server 环境变量覆盖：
 
@@ -198,6 +249,9 @@ Server 环境变量覆盖：
 | `DEEPSIGHT_CONFIG` | 配置文件路径 |
 | `DEEPSIGHT_LISTEN_ADDR` | `server.listen.address` |
 | `DEEPSIGHT_LISTEN_NETWORK` | `server.listen.network` |
+| `DEEPSIGHT_MCP_ENABLED` | `server.mcp.enabled` |
+| `DEEPSIGHT_MCP_LISTEN_ADDR` | `server.mcp.listen.address` |
+| `DEEPSIGHT_MCP_LISTEN_NETWORK` | `server.mcp.listen.network` |
 
 Server CLI 覆盖：
 
@@ -205,7 +259,112 @@ Server CLI 覆盖：
 --config
 --listen-network
 --listen-address
+--mcp-enabled
+--mcp-listen-network
+--mcp-listen-address
 ```
+
+### Server B1-B6 配置演进
+
+当前 Server 已实现的稳定配置包括 `server.listen.*`、TLS stub、B1 ingest gate、
+B2 TaskChannel skeleton gate、B3 Hot Metrics Window 的 `buffer.metric_*`
+运行策略、B4 Cold Events Queue 的 `buffer.event_*` 防抖、retention 和
+bbolt 持久化 gate、B5 Task State / Ticket 的 `server.task_store.*`，以及
+B6 Internal Query DTO 的 `server.query.*`。未实现字段不得写成当前可用能力；
+实现时必须同步 `configs/server.example.yaml`、`internal/config/*`、配置测试和本文档。
+
+```yaml
+server:
+  ingest:
+    allow_partial_batch: false
+    max_batch_wrappers: 1024
+    max_payload_bytes: 1048576
+  task_channel:
+    enabled: false
+    max_streams: 64
+    max_streams_per_node: 1
+    send_queue_size: 32
+    max_response_wrappers: 128
+  task_store:
+    short_task_timeout_sec: 15
+    max_active_tasks: 128
+    max_tickets: 1024
+    ticket_ttl_sec: 3600
+    completed_task_retention_sec: 1800
+    gc_interval_sec: 60
+    max_result_wrappers: 1024
+    max_result_bytes: 1048576
+  query:
+    max_items: 100
+    max_metric_summaries: 200
+    max_anomalies: 100
+    max_task_results: 50
+    timeout_ms: 5000
+    max_dto_bytes: 1048576
+    redact_internal_ids: true
+  mcp:
+    enabled: true
+    transport: streamable_http
+    max_client_sessions: 64
+    request_timeout_ms: 5000
+    max_resource_items: 100
+    max_concurrent_tools: 4
+    max_high_cost_tools_per_session: 1
+    max_response_bytes: 1048576
+    listen:
+      network: tcp
+      address: 127.0.0.1:50052
+      tls:
+        enabled: false
+
+buffer:
+  memory_window_size: 1024
+  metric_memory_window_size: 1024
+  metric_window_sec: 300
+  metric_max_samples_per_key: 300
+  metric_max_keys_per_kind: 100
+  metric_max_total_samples: 100000
+  metric_late_sample_tolerance_sec: 60
+  metric_future_tolerance_sec: 10
+  metric_overflow_bucket_enabled: true
+  event_queue_size: 4096
+  event_dedup_window_sec: 60
+  event_context_window_sec: 300
+  event_retention_hours: 24
+  event_max_records: 10000
+  event_disk_waterline_bytes: 67108864
+  event_persist_enabled: true
+  event_store_path: data/deepsight-events.db
+  event_severity_eviction_enabled: true
+```
+
+阶段归属：
+
+| 阶段 | 配置范围 |
+| --- | --- |
+| B1 | `server.ingest.*`, `buffer.memory_window_size`, `buffer.metric_memory_window_size` |
+| B2 | `server.task_channel.enabled`, stream/queue/response 上限 |
+| B3 | `buffer.metric_*` 热指标窗口和维度基数上限 |
+| B4 | `buffer.event_*` 冷事件队列、防抖、retention 和持久化 gate |
+| B5 | `server.task_store.*` |
+| B6 | `server.query.*` 内部 DTO 查询限制 |
+| B7-B10 | `server.mcp.*` transport、Resource/Tool/Prompt 限制、高成本并发 gate 和响应大小上限 |
+
+约束：
+
+- 配置字段必须有保守默认值；不得允许无限 window、无限队列、无限 task 或无限查询结果。
+- Server 侧配置只能约束 Bob-owned Server 内部策略，不能反向改变 Probe 已接受契约。
+- B5 不得通过配置伪装长任务能力；超过 Probe 当前 `duration_sec` 上限的请求必须明确失败，除非后续 contract 接受新能力。
+- 当前 `server.mcp.*` 已覆盖 Streamable HTTP listener、session 上限、请求超时、Resource
+  返回上限、Tool 并发/高成本 gate，以及 MCP 响应大小上限；Resources、Tools 和
+  Prompts 已在启用 MCP 时对外广告。
+- 仓库提供的 `configs/server.example.yaml` 与 `configs/probe.example.yaml` 现在偏向
+  LLM/MCP 全功能演示与验收：默认三模块全开，默认启用
+  `server.task_channel.enabled` 和 `server.mcp.enabled`，并将
+  `buffer.event_store_path` 设为相对路径；若改为 systemd/长期运行部署，应先改成
+  更保守的部署值。
+- MCP 主路径使用 Streamable HTTP；本地 stdio 只作为独立 adapter 配置，不应伪装成 Server
+  listen network。
 
 ---
 
@@ -221,9 +380,9 @@ type Endpoint struct {
 }
 ```
 
-### TCP 默认模式
+### TCP 分布式模式
 
-TCP 是 Hello 阶段默认开发链路：
+TCP 用于跨机器部署和分布式场景：
 
 ```yaml
 network: tcp
@@ -244,7 +403,7 @@ UDS 用于 Probe 与 Server 同机运行：
 
 ```yaml
 network: unix
-address: /var/run/deepsight/deepsight.sock
+address: /run/deepsight/grpc.sock
 tls:
   enabled: false
 ```
@@ -253,7 +412,7 @@ tls:
 
 - Server 启动时创建 socket 目录。
 - Server 启动前会删除同路径 stale socket。
-- Probe dial target 自动转换为 `unix:///var/run/deepsight/deepsight.sock`。
+- Probe dial target 自动转换为 `unix:///run/deepsight/grpc.sock`。
 
 ### TLS Stub
 

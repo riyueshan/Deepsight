@@ -3,6 +3,7 @@
 > 配置详情请参考[开发环境配置](/guide/dev-setup)
 > 配置系统分层与运行时覆盖规则请参考[配置系统设计](/guide/dev/config)
 > Protobuf 契约与模块扩展规则请参考[Protobuf 契约设计](/guide/dev/proto/proto)
+> Claude Code + Deepsight MCP 接入见[Claude Code MCP 接入](/guide/dev/claude-code-mcp)
 
 **注意**：eBPF 开发**必须**在 Linux 环境下进行（当前验证版本为Linux 6.12.74+deb13+1-amd64），Mac/Windows 用户请使用虚拟机或 WSL2。
 

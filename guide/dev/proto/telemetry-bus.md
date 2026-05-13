@@ -12,7 +12,7 @@
 service DeepsightGateway {
   rpc Register(RegisterRequest) returns (RegisterResponse) {}
   rpc PushTelemetry(stream TelemetryBatch) returns (TelemetryAck) {}
-  rpc TaskChannel(stream TaskResponse) returns (stream TaskRequest) {}
+  rpc TaskChannel(stream TaskChannelUpstream) returns (stream TaskChannelDownstream) {}
 }
 ```
 
@@ -22,7 +22,11 @@ service DeepsightGateway {
 | --- | --- | --- | --- |
 | `Register` | unary | Hello 阶段最小可用 | Probe 注册并获取 session token；字典同步仍预留 |
 | `PushTelemetry` | client streaming | 当前主链路 | Probe 主动持续上报 Metric/Event batch |
-| `TaskChannel` | bidirectional streaming | 明确返回 Unimplemented | Server 下发诊断任务，Probe 返回结果 |
+| `TaskChannel` | bidirectional streaming | 默认关闭时返回 Unimplemented；显式启用后为 B2 hello-gated skeleton | Server 下发诊断任务，Probe 返回结果 |
+
+线协议 source of truth 是 `proto/v1/telemetry.proto`。当前 TaskChannel stream shape 是显式
+`TaskChannelUpstream` / `TaskChannelDownstream` envelope；旧
+`stream TaskResponse -> stream TaskRequest` shape 不再支持。
 
 ---
 
@@ -47,7 +51,8 @@ message RegisterResponse {
 - `pre_defined_dict`：未来 Probe 启动时同步全量字符串字典，Hello 阶段暂不使用。
 - `session_token`：Hello 阶段已由 Server 返回，并由 Probe 注入后续 `TelemetryBatch`。
 
-Hello 阶段 Server 返回固定 token，主要用于打通最小 session 闭环；完整字典生命周期仍是后续能力。
+Server 必须返回非空 token，Probe 会把它注入后续 `TelemetryBatch`。具体 token 生成策略属于
+Server 实现状态，不在本文维护；完整字典生命周期仍是后续能力。
 
 ---
 
@@ -86,8 +91,8 @@ message TelemetryBatch {
 | --- | --- | --- |
 | `session_token` | 标识当前 Probe 会话 | 已由 Register 注入 |
 | `base_timestamp_ns` | 批次基准时间 | 已使用 |
-| `metrics` | 高频连续指标集合 | 框架已支持，当前暂无真实 metric |
-| `spontaneous_events` | 突发事件集合 | 当前 `execve` 使用 |
+| `metrics` | 高频连续指标集合 | network/storage/process 模块均可上报 |
+| `spontaneous_events` | 突发事件集合 | network/storage/process 模块均可上报 |
 | `incremental_dict` | 运行中新增字符串字典 | 预留 |
 
 ### 时间设计
@@ -206,12 +211,42 @@ message TelemetryAck {
 ## 八、TaskChannel
 
 ```protobuf
-rpc TaskChannel(stream TaskResponse) returns (stream TaskRequest) {}
+rpc TaskChannel(stream TaskChannelUpstream) returns (stream TaskChannelDownstream) {}
 ```
 
 TaskChannel 是控制面通道，服务未来 MCP Tool 下钻诊断。
 
 ```protobuf
+message TaskChannelUpstream {
+  oneof payload {
+    TaskChannelHello hello = 1;
+    TaskResponse response = 2;
+    TaskChannelHeartbeat heartbeat = 3;
+  }
+}
+
+message TaskChannelDownstream {
+  oneof payload {
+    TaskRequest request = 1;
+    TaskChannelAck ack = 2;
+  }
+}
+
+message TaskChannelHello {
+  string node_id = 1;
+  string session_token = 2;
+  string probe_version = 3;
+  repeated string enabled_modules = 4;
+}
+
+message TaskChannelHeartbeat {
+  uint64 monotonic_time_ns = 1;
+}
+
+message TaskChannelAck {
+  string message = 1;
+}
+
 message TaskRequest {
   string task_id = 1;
   deepsight.common.Action action = 2;
@@ -239,27 +274,17 @@ message TaskResponse {
 - Probe 将窗口型任务结果以 `MetricWrapper` 返回，例如 TCP 连接快照或接口统计
   delta。
 - `Trace*Args` 放在模块 proto 中，避免总线变成模块字段堆积区。
+- `TaskChannelUpstream` 包含 `hello`、`response`、`heartbeat`。
+- `TaskChannelDownstream` 包含 `request`、`ack`。
+- 首个 upstream frame 必须是 `TaskChannelHello`。
+- Server 在 hello 校验成功前不得下发 request。
+- Server 以 hello 中的 `session_token` 绑定 active session，并用 `node_id` 做一致性校验。
+- `TaskResponse` 业务字段和模块 payload 语义保持不变，只是被 upstream envelope 包装。
 
-当前 N3 实现只补齐 Alice-side Probe TaskChannel client/executor；Bob-owned
-Server TaskChannel 仍保持 `Unimplemented`，避免调用方误以为 Server 控制面已经可用。
+该变更不提供旧 stream shape fallback；Probe 和 Server 必须同一 release 配套。
 
 ---
 
-## 九、Hello 当前链路
+## 九、当前状态入口
 
-当前真实数据是 `execve`：
-
-```text
-eBPF sys_enter_execve
-  -> loader.Event{PID, Comm}
-  -> loader.RawEvent{Module:"process", Kind:"execve"}
-  -> ProcessEvent{event_type:"execve", pid, comm}
-  -> EventWrapper{level:INFO, process:ProcessEvent}
-  -> Register 获取 session_token
-  -> TelemetryBatch{session_token, spontaneous_events:[...]}
-  -> PushTelemetry
-  -> Server dispatcher
-  -> memory buffer
-```
-
-这个链路证明：即使 Hello 只采集一个简单事件，它也已经跑在完整模块化总线上。
+当前实现状态、已完成模块范围和未实现能力以 `.agent/state/context.md` 为入口。本文只维护总线契约语义，不记录某个阶段的具体代码事实。

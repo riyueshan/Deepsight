@@ -86,8 +86,12 @@ Bob-side diagnostic request
 -> Bob-side consumer
 ```
 
-推荐 task type：
+当前已接受 task type：
+
 - `profile_on_cpu`
+
+Future/unavailable 候选，不属于当前 Process baseline：
+
 - `trace_process_tree`
 - `trace_syscall_errors`
 
@@ -120,13 +124,13 @@ Process 配置定义：
 
 ## 五、TaskRequest 参数
 
-`TraceProcessArgs` 应扩展为严格受控的参数。
+`TraceProcessArgs` 应保持严格受控参数。
 
 候选语义：
 - `task_type`：白名单任务类型。
 - `target_pid` / `target_cgroup`：精确过滤条件。
 - `duration_sec`：任务窗口（强制上限）。
-- `sample_freq_hz`：用于 `profile_on_cpu` 的频率（如 99Hz）。
+- `sample_rate`：用于 `profile_on_cpu` 的采样率/频率语义。
 - `trace_children`：是否同时追踪目标 PID 的派生子进程。
 
 约束：
@@ -229,7 +233,7 @@ message TaskResponse {
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `kind` | enum | `cpu_usage`, `runqueue_latency`, `process_creation_rate` 等 |
+| `kind` | enum | `runqueue_latency_us`, `process_creation_rate`, `context_switch_rate`, `cfs_throttled_time_us`, `process_count` |
 | `temporality` | enum | gauge 或 delta |
 | `metric_value` | uint64 | 指标值 |
 | `window_ns` | uint64 | 聚合窗口 |

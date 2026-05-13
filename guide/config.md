@@ -18,6 +18,13 @@ cp configs/server.example.yaml server.yaml
 cp configs/probe.example.yaml probe.yaml
 ```
 
+如果你是通过安装器落地运行时，
+实际落地到 `/etc/deepsight/` 的通常不是这两份 `example`，而是 `configs/presets/`
+里的场景化配置。两者职责不同：
+
+- `configs/presets/*`：面向安装器，按 `llm-quickstart`、`single-node-demo`、`split-server`、`split-probe` 等场景提供开箱即用默认值。
+- `configs/server.example.yaml`、`configs/probe.example.yaml`：面向开发者与手工前台验证，不等价于 release 安装的推荐默认值。
+
 运行时配置优先级固定为：
 
 ```text
@@ -75,7 +82,7 @@ Server 示例：
 server:
   listen:
     network: unix
-    address: /var/run/deepsight/deepsight.sock
+    address: /run/deepsight/grpc.sock
     tls:
       enabled: false
 ```
@@ -87,7 +94,7 @@ probe:
   exporter:
     endpoint:
       network: unix
-      address: /var/run/deepsight/deepsight.sock
+      address: /run/deepsight/grpc.sock
       tls:
         enabled: false
 ```
@@ -96,7 +103,7 @@ probe:
 
 - Server 启动时会创建 socket 所在目录。
 - Server 启动前会删除同路径的 stale socket。
-- Probe 会把该路径转换为 gRPC dial target：`unix:///var/run/deepsight/deepsight.sock`。
+- Probe 会把该路径转换为 gRPC dial target：`unix:///run/deepsight/grpc.sock`。
 - socket 路径权限必须允许 Probe 访问。
 
 ---
@@ -111,8 +118,8 @@ log:
   format: json
 
 modules:
-  network: false
-  storage: false
+  network: true
+  storage: true
   process: true
 ```
 
@@ -128,6 +135,15 @@ modules:
 
 至少需要启用一个模块，否则启动会失败。
 
+当前仓库里的 `configs/*.example.yaml` 偏向开发者前台验证；真正面向安装器的默认行为以 `configs/presets/*` 为准。
+
+当前 preset 语义：
+
+- `llm-quickstart`：只安装 `server`，打开 MCP，关闭 TaskChannel，优先验证 Claude Code 的只读 MCP 接入。
+- `single-node-demo`：安装 `server + probe`，打开 MCP 与 TaskChannel，Server/Probe 同机默认走 UDS，优先验证本机完整闭环。
+- `split-server`：只安装接收端 `server`，用于分布式部署中的中心主机。
+- `split-probe`：只安装采集端 `probe`，要求显式指定上报目标地址，避免误用本地回环地址。
+
 ---
 
 ## 四、Server 配置
@@ -140,8 +156,8 @@ log:
   format: json
 
 modules:
-  network: false
-  storage: false
+  network: true
+  storage: true
   process: true
 
 buffer:
@@ -163,6 +179,12 @@ server:
 | `server.listen.network` | 监听类型，支持 `tcp` 或 `unix` |
 | `server.listen.address` | TCP 地址或 Unix socket 路径 |
 | `server.listen.tls.enabled` | TLS 开关；当前必须为 `false` |
+
+开箱即用建议：
+
+- 手工前台验证时可直接复制 `configs/server.example.yaml`。
+- release 安装与长期运行优先使用 `configs/presets/*` 和 `install.sh`。
+- 若用于 systemd/长期运行，应把 `buffer.event_store_path` 改成持久且可写的绝对路径，例如 `/var/lib/deepsight/deepsight-events.db`。
 
 Server CLI 覆盖：
 
@@ -193,8 +215,8 @@ log:
   format: json
 
 modules:
-  network: false
-  storage: false
+  network: true
+  storage: true
   process: true
 
 transformer:
@@ -262,6 +284,7 @@ probe:
 
 - `enable_dataplane` 控制 TCX ingress/egress data-plane metrics。
 - `dataplane_interfaces` 为空时，Probe 自动选择非 loopback、up 的接口。
+- `configs/probe.example.yaml` 默认保持 `enable_dataplane=false`，让三模块演示先聚焦 portable metrics / events / MCP tool，而不是更依赖宿主机网络接口环境的 dataplane attach。
 - `allowed_task_types` 控制 TaskChannel 可下发的网络任务白名单。
 
 ### 6.2 Storage
@@ -291,6 +314,7 @@ probe:
 - `devices` 为空时，Probe 自动选择可观测 block device。
 - `enable_events` 控制 Storage 事件路径。
 - `enable_attribution` 开启后会增加 cgroup、mount namespace 等 best-effort 归因。
+- `configs/probe.example.yaml` 默认保持 `enable_attribution=false`，降低三模块同时演示时的额外归因开销；如果需要展示 Storage 归因字段，可手工开启。
 - `allowed_task_types` 控制 TaskChannel 可下发的存储任务白名单。
 
 ### 6.3 Process
@@ -312,6 +336,7 @@ probe:
 - `enable_attribution` 开启后，Probe 会 best-effort 解析 Pod/Container 归因字段。
 - `max_concurrent_tasks` 控制 Process TaskChannel 并发上限。
 - `profile_on_cpu` 已实现；`trace_process_tree` 和 `trace_syscall_errors` 当前会结构化返回未实现错误。
+- `configs/probe.example.yaml` 默认把当前已实现的网络、存储和进程 task 都放入白名单，便于直接做 MCP Tool 验收；未实现的 `trace_process_tree` 和 `trace_syscall_errors` 仍不会出现在样例白名单里。
 
 ---
 
@@ -320,5 +345,8 @@ probe:
 - `tls.enabled: true` 会导致启动失败；TLS/mTLS 是后续能力。
 - TCP 默认地址是 `127.0.0.1`，避免误暴露；跨机器部署需要显式改成内网地址。
 - UDS 只适合同机部署，且需要关注 socket 路径权限。
-- TaskChannel 的 Server 侧当前未完成；Probe 在遇到 `Unimplemented` 时会继续数据面上报。
+- 代码默认的 TaskChannel 仍是关闭优先；但仓库提供的 `server.example.yaml` 为了 LLM/MCP 演示方便，默认已经把 `server.task_channel.enabled` 打开。
+- 代码默认的 MCP listener 仍是关闭优先；但仓库提供的 `server.example.yaml` 为了 MCP/LLM 验证方便，默认已经把 `server.mcp.enabled` 打开。
+- MCP 当前主路径是 `server.mcp.transport=streamable_http`，配套本地调试入口是独立 `deepsight-mcp-stdio` adapter。
+- `completion/complete`、resource subscription 和 `logging/setLevel` 当前仍返回结构化 feature-disabled 错误；主诊断闭环不依赖这些能力。
 - Pod/Container 归因字段是 best-effort，不能作为数据有效性的硬前提。

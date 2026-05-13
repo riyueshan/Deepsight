@@ -68,6 +68,11 @@ Network 和 Storage 模块已经分别在后续里程碑中演进为强字段契
 
 后续新增模块时，优先扩展 `proto/modules/*.proto`，只有需要把新模块接入总线时，才修改 `v1/telemetry.proto` 的 `oneof payload`。
 
+TaskChannel stream shape 属于总线级契约。当前 `v1` 已切换为显式
+`TaskChannelUpstream` / `TaskChannelDownstream` envelope；旧
+`TaskChannel(stream TaskResponse) returns (stream TaskRequest)` 不再支持。该变更是当前分支内的
+lockstep replacement 例外，必须与 [兼容性规则](/guide/dev/proto/compatibility) 中的例外条件一致，不应被理解为旧协议兼容。
+
 ---
 
 ## 二、核心模型

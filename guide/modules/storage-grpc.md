@@ -62,17 +62,23 @@ Bob-facing 消费侧应能获得：
 - metric value 和 window。
 - device identity，例如 major/minor、disk name。
 - operation，例如 read、write、flush、discard。
-- layer 和 phase，例如 block queue、block complete、vfs write、fsync、writeback。
-- latency、queue、error、retry 等指标语义。
-- 必要的低基数归因，例如 cgroup id 或 mount namespace。
+- layer 和 phase，例如 block issue、block complete、block queue。
+- latency bucket 和 reason class 等当前 proto 已接受的低基数字段。
 
-最小 Metric kind 候选：
+当前已接受 Metric kind：
 
-- `read_bytes` / `write_bytes`
-- `read_ops` / `write_ops`
-- `request_latency`
+- `READ_BYTES`
+- `WRITE_BYTES`
+- `READ_OPS`
+- `WRITE_OPS`
+- `REQUEST_LATENCY_BUCKET`
+- `ERROR_COUNT`
+
+Future/unavailable Metric 候选不属于当前 Bob-facing 契约，Bob 侧不得把它们作为 Memory schema、
+Resource schema 或 Tool schema 的必需输入：
+
 - `queue_depth` / `in_flight_requests`
-- `error_count` / `retry_count` / `timeout_count`
+- `retry_count` / `timeout_count`
 - `flush_latency` / `fsync_latency`
 - `writeback_pressure`
 - `process_io_rate`
@@ -89,48 +95,49 @@ Storage Event 应携带足够上下文，使 Bob 侧能够做事件防抖、索�
 event_kind + device + operation + reason_class + stack_id + cgroup_id
 ```
 
-PID 默认不进入主防抖 key。直接按 PID 拆分会在慢盘或写回拥塞时放大事件基数，削弱防抖效果。对于 `slow_io`、`io_error`、`io_timeout` 等影响多个进程的异常，Event 应保留受害进程样本：
+PID 默认不进入主防抖 key。直接按 PID 拆分会在慢盘或队列拥塞时放大事件基数，削弱防抖效果。对于 `slow_io`、`io_error`、`timeout`、`retry` 或 `queue_congestion` 等影响多个进程的异常，Event 应保留受害进程样本：
 
 - representative pid/comm/cgroup。
 - affected process count。
 - first seen / last seen 窗口语义。
 - 被截断的受害进程数量。
 
-task scoped 事件可以保留更完整的 pid、comm、target device、path 或 operation，因为任务已有明确过滤条件和事件上限。
+task scoped 事件可以保留更完整的 pid、comm、target device 或 operation，因为任务已有明确过滤条件和事件上限。当前 `StorageEvent` 不包含 path 字段；路径归因属于 future/unavailable 扩展。
 
-Event 应保留：
+当前已接受 Event 字段应保留：
 
-- slow/error/timeout/retry/flush/fsync 等 event kind。
+- `SLOW_IO`
+- `IO_ERROR`
+- `TIMEOUT`
+- `RETRY`
+- `QUEUE_CONGESTION`
 - latency、count 和 reason/error code。
-- device、operation、layer、phase、namespace/cgroup。
+- device、operation、layer、phase、mount namespace/cgroup。
 - actor pid/comm，表达触发 I/O 的主体。
 - 受影响进程样本，用于表达横向影响面。
 - affected process count。
 - stack id 或可还原的 stack/string 字典语义。
 - `truncated_count`，表达 Probe 侧采样或截断。
 - task id 或 task scope，区分常驻事件和任务结果。
-- path 仅作为 best-effort enrichment，不作为常驻事件的必需字段。
 
-最小 Event kind 候选：
+当前已接受 reason class 对应语义：
 
-- `slow_io`
-- `io_error`
-- `io_timeout`
-- `io_retry`
+- `NORMAL`
+- `DEVICE_LATENCY`
+- `QUEUE_WAIT`
+- `IO_ERROR`
+- `TIMEOUT`
+- `RETRY`
+- `WRITEBACK_PRESSURE`
+- `UNKNOWN_LATENCY`
+
+Future/unavailable Event 候选不属于当前 Bob-facing 契约：
+
 - `flush_latency`
 - `fsync_latency`
-- `queue_congestion`
-- `writeback_pressure`
-
-最小 reason class 候选：
-
-- `device_latency`
-- `queue_congestion`
-- `process_write_pressure`
-- `fsync_pressure`
-- `writeback_pressure`
-- `io_error`
-- `timeout`
+- `writeback_pressure` 事件
+- VFS/fs/writeback 专用事件
+- path/inode 归因事件
 
 ### 2.3 S5 归因字段
 
@@ -185,11 +192,14 @@ Bob-side diagnostic request
 -> Bob-side consumer
 ```
 
-推荐 task type：
+当前已接受 task type：
 
 - `trace_slow_io`
 - `monitor_process_io`
 - `monitor_device_io`
+
+Future/unavailable 候选，不属于当前 Storage baseline：
+
 - `trace_fsync_latency`
 - `trace_vfs_latency`
 - `trace_writeback_pressure`
@@ -231,19 +241,17 @@ Storage 配置负责定义：
 
 ## 五、TaskRequest 参数
 
-后续 `TraceStorageArgs` 应从早期占位壳扩展为受控参数。
+`TraceStorageArgs` 应保持严格受控参数。
 
-候选语义：
+当前已接受参数：
 
 - `task_type`：白名单任务类型。
 - `duration_sec`：任务窗口。
-- `pid` / `tgid`：进程过滤。
-- `device`、`major`、`minor`：设备过滤。
-- `mount_ns_id` / `cgroup_id`：归因过滤。
-- `operation`：read、write、flush、discard、fsync 等。
-- `layer` / `phase`：限制任务关注 block、vfs、filesystem 或 writeback 的特定阶段。
-- `path` / `inode`：仅用于 task scoped best-effort 过滤或富化，不作为 block path 稳定契约。
-- `latency_threshold_ns`：慢 I/O 阈值。
+- `pid`：进程过滤。
+- `device`：设备过滤。
+- `mount_path`：挂载路径过滤，best-effort。
+- `cgroup`：cgroup 字符串过滤，best-effort。
+- `operation`：read、write、flush、discard。
 - `sample_rate`：采样率。
 - `max_events`：最大返回事件数。
 
@@ -253,8 +261,17 @@ Storage 配置负责定义：
 - `duration_sec` 必须有默认值和硬上限。
 - `max_events` 必须有硬上限，超出后通过 `truncated_count` 表达。
 - 没有过滤条件的高成本任务必须降级为聚合模式或拒绝。
-- path 过滤必须声明 best-effort 语义；rename、unlink、bind mount、overlayfs 和 namespace 差异可能导致不命中或命中旧路径。
+- `mount_path` / `cgroup` 过滤必须声明 best-effort 语义；rename、unlink、bind mount、overlayfs 和 namespace 差异可能导致不命中或命中旧路径。
 - Probe 侧必须重复校验参数，不能只依赖 Bob 侧校验。
+
+Future/unavailable 参数不属于当前 `TraceStorageArgs` 契约，Bob 侧不得下发：
+
+- `tgid`
+- `major` / `minor`
+- `mount_ns_id` / `cgroup_id`
+- `layer` / `phase`
+- `path` / `inode`
+- `latency_threshold_ns`
 
 ---
 
@@ -332,7 +349,7 @@ message TaskResponse {
 - `StorageEvent` 表达 device、operation、layer、phase、latency、actor pid/comm、reason/error、stack id 和 task scope。
 - `StorageMetric` 表达 task scoped 或常驻的低基数聚合状态，例如 read/write bytes、ops、latency bucket、error count 和 window。
 - 常驻事件用受害进程样本表达影响面，不把 PID 作为默认防抖主键。
-- path 字段如果存在，只能表示 Probe 当前可还原的 best-effort 路径。
+- 当前 `StorageEvent` 不包含 path 字段；路径归因属于 future/unavailable 扩展，不得作为当前结果前提。
 - Task scoped 结果应包含窗口汇总 metric，表达 task window 内 read/write bytes、read/write ops、top device、top operation、slow sample count、error count、truncated count 和 reason_class；异常样本再放入 event。
 - 字典化 stack/string 必须能由 Bob-facing consumer 还原。
 
