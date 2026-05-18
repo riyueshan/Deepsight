@@ -331,5 +331,5 @@ trace_writeback_pressure、trace_io_errors）、path attribution 和 flow-cardin
 - [存储模块 Probe 设计](/guide/modules/storage-probe)
 - [存储模块 gRPC 接入设计](/guide/modules/storage-grpc)
 - 当前 Payload 规则：[模块 Payload 设计与扩展规范](/guide/dev/proto/module-payloads)
-- 当前数据管线：[数据管线](/guide/data-pipeline)
+- 当前数据管线：[数据管线](/guide/architecture/data-pipeline)
 - 当前 Hello-Arch：[Hello-Arch 架构设计](/guide/dev/hello-arch)

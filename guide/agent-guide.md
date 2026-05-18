@@ -29,8 +29,8 @@ Agent 在修改代码前应先建立最小充分上下文：
 5. 检查验证清单和代码-文档映射。
 
 公开文档中，长期架构以 [项目概览](/guide/overview)、
-[数据流](/guide/data-pipeline)、[RPC 契约](/guide/rpc-contract) 和
-[工程设计](/guide/engineering-arch) 为准。Agent 文档只约束协作方式，不替代
+[数据流](/guide/architecture/data-pipeline)、[RPC 契约](/guide/architecture/rpc-contract) 和
+[工程设计](/guide/architecture/engineering-arch) 为准。Agent 文档只约束协作方式，不替代
 架构文档。
 
 ## 3. 任务大小

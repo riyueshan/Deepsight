@@ -1,6 +1,6 @@
 # 用户配置说明
 
-> 本文面向 Deepsight 用户，说明 Server 与 Probe 的运行配置。安装与启动流程见[安装 Deepsight](/guide/install)，配置系统内部设计见[配置系统设计](/guide/dev/config)。
+> 本文面向 Deepsight 用户，说明 Server 与 Probe 的运行配置。安装与启动流程见[安装 Deepsight](/guide/use/install)，配置系统内部设计见[配置系统设计](/guide/dev/config)。
 
 ---
 
@@ -22,7 +22,7 @@ cp configs/probe.example.yaml probe.yaml
 实际落地到 `/etc/deepsight/` 的通常不是这两份 `example`，而是 `configs/presets/`
 里的场景化配置。两者职责不同：
 
-- `configs/presets/*`：面向安装器，按 `llm-quickstart`、`single-node-demo`、`split-server`、`split-probe` 等场景提供开箱即用默认值。
+- `configs/presets/*`：面向安装器，按 `single-node-demo`、`split-server`、`split-probe` 等场景提供开箱即用默认值。
 - `configs/server.example.yaml`、`configs/probe.example.yaml`：面向开发者与手工前台验证，不等价于 release 安装的推荐默认值。
 
 运行时配置优先级固定为：
@@ -139,7 +139,6 @@ modules:
 
 当前 preset 语义：
 
-- `llm-quickstart`：只安装 `server`，打开 MCP，关闭 TaskChannel，优先验证 Claude Code 的只读 MCP 接入。
 - `single-node-demo`：安装 `server + probe`，打开 MCP 与 TaskChannel，Server/Probe 同机默认走 UDS，优先验证本机完整闭环。
 - `split-server`：只安装接收端 `server`，用于分布式部署中的中心主机。
 - `split-probe`：只安装采集端 `probe`，要求显式指定上报目标地址，避免误用本地回环地址。

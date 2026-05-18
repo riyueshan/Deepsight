@@ -1,6 +1,6 @@
 # 一键部署
 
-> 配置详情请参考[开发环境配置](/guide/dev-setup)
+> 配置详情请参考[开发环境配置](/guide/dev/setup)
 > 配置系统分层与运行时覆盖规则请参考[配置系统设计](/guide/dev/config)
 > Protobuf 契约与模块扩展规则请参考[Protobuf 契约设计](/guide/dev/proto/proto)
 > Claude Code + Deepsight MCP 接入见[Claude Code MCP 接入](/guide/dev/claude-code-mcp)

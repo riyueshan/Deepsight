@@ -1,7 +1,7 @@
 # Release 打包与发布流程
 
 > 本文说明 Deepsight 预构建二进制发布包的设计、打包流程和推送到 GitHub 公开仓库 `riyueshan/Deepsight`
-> GitHub Releases 的方式。用户安装说明见[安装 Deepsight](/guide/install)，官网与文档站边界见[官网与文档站维护](/guide/site-maintenance)，Claude Code 接入见[Claude Code MCP 接入](/guide/dev/claude-code-mcp)。
+> GitHub Releases 的方式。用户安装说明见[安装 Deepsight](/guide/use/install)，官网与文档站边界见[官网与文档站维护](/guide/dev/site-maintenance)，Claude Code 接入见[Claude Code MCP 接入](/guide/dev/claude-code-mcp)。
 
 ---
 
@@ -87,8 +87,6 @@ build/release/
       server.example.yaml
       probe.example.yaml
     presets/
-      llm-quickstart/
-        server.yaml
       single-node-demo/
         server.yaml
         probe.yaml
@@ -110,7 +108,7 @@ build/release/
 
 `install.sh` 面向常见 systemd 常驻部署：默认安装二进制到 `/usr/local/bin`、配置到
 `/etc/deepsight/`、状态目录到 `/var/lib/deepsight/`，并可通过 `--preset`
-直接选择 `llm-quickstart`、`single-node-demo`、`split-server`、`split-probe` 等场景，
+直接选择 `single-node-demo`、`split-server`、`split-probe` 等场景，
 再通过参数覆盖 TCP 场景下的 gRPC/MCP 监听地址与是否自动启服。`single-node-demo`
 固定使用 UDS `/run/deepsight/grpc.sock` 连接 `server` 与 `probe`。该脚本只认
 release 包根目录布局，不直接理解源码仓库里的 `build/` / `deploy/` 结构。

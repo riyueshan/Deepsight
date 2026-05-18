@@ -3,59 +3,116 @@ layout: home
 
 hero:
   name: Deepsight
-  text: 让 LLM 获得实时内核态感知
-  tagline: 基于 eBPF 与 MCP 的 AI 原生可观测性底座
+  text: 把系统现场接入 LLM
+  tagline: eBPF Probe、gRPC Gateway 与 MCP Interface 组成的 AI 原生可观测性底座
   actions:
     - theme: brand
-      text: 快速开始
-      link: /guide/quick-start
+      text: 部署 Deepsight
+      link: /guide/use/install
     - theme: alt
-      text: 阅读架构
-      link: /guide/overview
+      text: 开发接入
+      link: /guide/dev/quick-start
 
 features:
-  - title: 重边缘，轻中心
-    details: 在 Probe 侧完成高频采集、限流与熔断，降低主机开销，避免观测反噬业务。
-  - title: 数据与通道解耦
-    details: Metric 与 Event 分离传输，动态字典压缩与语义透明同时成立。
-  - title: 面向 LLM 的时间感知
-    details: 热数据滑窗、冷数据持久化、长短任务分流，让诊断链路更贴近真实系统状态。
+  - title: 用户部署
+    details: release 安装、单机演示、分布式部署、Claude Code 接入
+    link: /guide/use/install
+    linkText: 查看用户指南
+  - title: 开发接入
+    details: 开发环境、源码构建、协议契约、Probe API 与测试框架
+    link: /guide/dev/quick-start
+    linkText: 查看开发指南
+  - title: 架构设计
+    details: 数据流、服务端状态、MCP Layer、模块设计与 gRPC 契约
+    link: /guide/architecture/data-pipeline
+    linkText: 阅读架构文档
 ---
 
-## 为什么是 Deepsight
+## 面向运行时诊断的入口站点
 
-现代大语言模型擅长推理，但面对瞬息万变的生产环境时，往往缺少实时、可信、结构化的底层信号。Deepsight 试图补上这一层，让系统状态能够以可解释的形式进入 AI 的上下文窗口，而不是停留在静态知识和模糊猜测。
+Deepsight 不是传统的监控面板，而是一条把系统现场组织成 LLM 可消费上下文的运行链路。官网的目标不是展示概念，而是让你尽快进入部署、接入和架构阅读。
 
-## 三层架构
+<div class="hero-panel-grid">
+  <div class="home-terminal">
+    <div class="home-terminal-bar">
+      <span></span><span></span><span></span>
+    </div>
+    <div class="home-terminal-body">
+      <div class="terminal-line">$ sudo ./install.sh --preset single-node-demo</div>
+      <div class="terminal-line">$ deepsight-init-client claude-code --scope project --mcp-url http://127.0.0.1:50052</div>
+      <div class="terminal-line">$ claude</div>
+      <div class="terminal-gap"></div>
+      <div class="terminal-line terminal-line-muted">Deepsight MCP connected</div>
+      <div class="terminal-line terminal-line-muted">Resources: health, metrics, events, tasks</div>
+      <div class="terminal-line terminal-line-muted">Tools: trace_network_drops, trace_slow_io, profile_on_cpu</div>
+    </div>
+  </div>
 
-Deepsight 由三个运行时层次组成：
+  <div class="signal-panel">
+    <div class="signal-row">
+      <span class="signal-key">transport</span>
+      <span class="signal-value">gRPC / Streamable HTTP</span>
+    </div>
+    <div class="signal-row">
+      <span class="signal-key">runtime</span>
+      <span class="signal-value">Probe / Server / MCP</span>
+    </div>
+    <div class="signal-row">
+      <span class="signal-key">tasks</span>
+      <span class="signal-value">ticketed diagnostics</span>
+    </div>
+    <div class="signal-row">
+      <span class="signal-key">surface</span>
+      <span class="signal-value">resources / tools / prompts</span>
+    </div>
+  </div>
+</div>
 
-- `Probe`：部署在目标节点，以 eBPF 方式提取内核与系统事件。
-- `Server`：接收、解码和缓存遥测数据，承担统一网关角色。
-- `MCP Interface`：把系统状态转化为大模型可消费的资源、工具与提示词。
+## 核心链路
 
 <div class="arch-diagram">
   <div class="arch-node">
-    <div class="arch-kicker">Edge</div>
-    <h3>Probe</h3>
+    <div class="arch-kicker">Probe</div>
+    <h3>Edge Capture</h3>
     <p>eBPF 采集、限流熔断、符号翻译、字典压缩</p>
   </div>
   <div class="arch-arrow" aria-hidden="true">→</div>
   <div class="arch-node arch-node-primary">
-    <div class="arch-kicker">Gateway</div>
-    <h3>Server</h3>
-    <p>PushTelemetry 接入、延迟翻译、冷热缓存、任务调度</p>
+    <div class="arch-kicker">Server</div>
+    <h3>Gateway Memory</h3>
+    <p>PushTelemetry 接入、冷热缓存、任务调度、查询投影</p>
   </div>
   <div class="arch-arrow" aria-hidden="true">→</div>
   <div class="arch-node">
-    <div class="arch-kicker">AI Interface</div>
-    <h3>MCP</h3>
-    <p>Resources、Tools、Prompts，把底层状态交给大模型</p>
+    <div class="arch-kicker">MCP</div>
+    <h3>LLM Interface</h3>
+    <p>Resources、Tools、Prompts，把系统现场交给模型</p>
   </div>
 </div>
 
-## 从哪里开始
+## 选择路径
 
-- 如果你想先跑通工程链路，阅读 [快速开始](/guide/quick-start)
-- 如果你想理解系统全貌，阅读 [项目概览](/guide/overview)
-- 如果你要参与研发和维护，阅读 [Agent 开发指南](/guide/agent-guide) 和 [站点维护文档](/guide/site-maintenance)
+<div class="entry-grid">
+  <a class="entry-card" href="/guide/use/install">
+    <div class="entry-label">For Users</div>
+    <h3>用户指南</h3>
+    <p>安装、部署、运行配置、单机演示和 Claude Code 接入。</p>
+  </a>
+  <a class="entry-card" href="/guide/dev/quick-start">
+    <div class="entry-label">For Builders</div>
+    <h3>开发指南</h3>
+    <p>环境搭建、源码构建、协议契约、测试框架和发布流程。</p>
+  </a>
+  <a class="entry-card" href="/guide/architecture/data-pipeline">
+    <div class="entry-label">For Reviewers</div>
+    <h3>架构设计</h3>
+    <p>数据流、Server 分层、MCP Layer、模块设计与 RPC 契约。</p>
+  </a>
+</div>
+
+## 从哪里继续
+
+- 用户安装路径：[安装说明](/guide/use/install)
+- 开发者入口：[开发快速开始](/guide/dev/quick-start)
+- 系统总览：[项目概览](/guide/overview)
+- Server 设计：[Server 总览](/guide/server/server)

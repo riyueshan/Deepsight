@@ -1,6 +1,6 @@
 # 手工运行与前台调试
 
-> 本文面向需要绕过 preset / systemd、直接手工启动 Deepsight 组件的用户。标准安装主路径请看[安装 Deepsight](/guide/install)。
+> 本文面向需要绕过 preset / systemd、直接手工启动 Deepsight 组件的用户。标准安装主路径请看[安装 Deepsight](/guide/use/install)。
 
 ---
 
@@ -91,6 +91,6 @@ Probe 真实运行需要 eBPF load/attach 权限，通常仍要 root。
 
 ## 五、相关文档
 
-- 标准安装：[安装 Deepsight](/guide/install)
+- 标准安装：[安装 Deepsight](/guide/use/install)
 - LLM 首次接入：[LLM 快速接入](/guide/use/llm-quick-start)
 - 单机完整演示：[单机完整演示](/guide/use/single-node-demo)

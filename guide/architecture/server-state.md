@@ -88,4 +88,4 @@ Deepsight Server 的目标是通过 **冷热分级缓存、防抖机制与长短
 
 在完成从内核到缓存的基础设施后，下一层需要面对大模型，定义该暴露哪些受控诊断入口
 
-👉 [MCP 交互接口](/guide/mcp-integration)；Bob-owned Server 细化设计见 [Server 端设计](/guide/server/server)
+👉 [MCP 交互接口](/guide/architecture/mcp-integration)；Bob-owned Server 细化设计见 [Server 端设计](/guide/server/server)

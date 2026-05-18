@@ -614,4 +614,4 @@ TaskStore
 - [Server gRPC 设计](/guide/server/grpc)
 - [Server MCP Layer 设计](/guide/server/mcp)
 - [Probe API 接入说明](/guide/dev/probe-api)
-- [Server 状态](/guide/server-state)
+- [Server 状态](/guide/architecture/server-state)

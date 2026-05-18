@@ -85,7 +85,7 @@
 
 了解了 Deepsight 的全局宏观架构后，请参考后续专项设计文档以深入实施细节：
 
-1. 想了解内核数据是如何一步步安全提取、语义翻译并最终抵达大模型视野的？👉 [数据流动过程](/guide/data-pipeline)
-2. 准备进行跨语言联调，需要了解 Probe 和 Server 的通道实现及具体的字段载荷定义？👉 [RPC 核心通信契约](/guide/rpc-contract)
+1. 想了解内核数据是如何一步步安全提取、语义翻译并最终抵达大模型视野的？👉 [数据流动过程](/guide/architecture/data-pipeline)
+2. 准备进行跨语言联调，需要了解 Probe 和 Server 的通道实现及具体的字段载荷定义？👉 [RPC 核心通信契约](/guide/architecture/rpc-contract)
 3. 服务端研发人员，需要实现 gRPC 接入、记忆机制与 MCP Layer？👉 [Server 端设计](/guide/server/server)
-4. 需要理解化解时间差的滑动窗口与缓存机理？👉 [缓存与记忆机制](/guide/server-state)
+4. 需要理解化解时间差的滑动窗口与缓存机理？👉 [缓存与记忆机制](/guide/architecture/server-state)

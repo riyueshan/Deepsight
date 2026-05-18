@@ -1,6 +1,6 @@
 # 开发环境配置
 
-> 快速配置参考[一键部署](/guide/quick-start)
+> 快速配置参考[一键部署](/guide/dev/quick-start)
 
 **注意**：eBPF 开发**必须**在 Linux 环境下进行（当前验证版本为Linux 6.12.74+deb13+1-amd64），Mac/Windows 用户请使用虚拟机或 WSL2。
 

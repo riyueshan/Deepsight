@@ -367,7 +367,7 @@ MCP 层测试应覆盖：
 - [Server 端设计](/guide/server/server)
 - [Server gRPC 设计](/guide/server/grpc)
 - [Server 记忆机制设计](/guide/server/memory)
-- [MCP 集成](/guide/mcp-integration)
+- [MCP 集成](/guide/architecture/mcp-integration)
 - [Probe API 接入说明](/guide/dev/probe-api)
 - [网络模块 gRPC 接入设计](/guide/modules/network-grpc)
 - [存储模块 gRPC 接入设计](/guide/modules/storage-grpc)

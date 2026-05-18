@@ -251,5 +251,5 @@ probe:
 - [进程模块 Probe 设计](/guide/modules/process-probe)
 - [进程模块 gRPC 接入设计](/guide/modules/process-grpc)
 - 当前 Payload 规则：[模块 Payload 设计与扩展规范](/guide/dev/proto/module-payloads)
-- 当前数据管线：[数据管线](/guide/data-pipeline)
-- 当前 MCP 设计：[MCP 集成](/guide/mcp-integration)
+- 当前数据管线：[数据管线](/guide/architecture/data-pipeline)
+- 当前 MCP 设计：[MCP 集成](/guide/architecture/mcp-integration)

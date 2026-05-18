@@ -103,4 +103,4 @@ flowchart TD
 
 了解了数据在数据链路中是如何处理并实现网络压缩与语义透明的解耦之后，我们需要定义具体的传输接口规则：
 
-👉 [RPC 核心通信契约](/guide/rpc-contract)
+👉 [RPC 核心通信契约](/guide/architecture/rpc-contract)

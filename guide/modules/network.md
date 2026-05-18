@@ -290,5 +290,5 @@ probe:
 - Linux Kernel kprobes: <https://docs.kernel.org/trace/kprobes.html>
 - libbpf program types: <https://docs.kernel.org/bpf/libbpf/program_types.html>
 - 当前 Payload 规则：[模块 Payload 设计与扩展规范](/guide/dev/proto/module-payloads)
-- 当前数据管线：[数据管线](/guide/data-pipeline)
-- 当前 MCP 设计：[MCP 集成](/guide/mcp-integration)
+- 当前数据管线：[数据管线](/guide/architecture/data-pipeline)
+- 当前 MCP 设计：[MCP 集成](/guide/architecture/mcp-integration)

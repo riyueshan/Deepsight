@@ -1,6 +1,6 @@
 # 从源码构建并安装运行时
 
-> 本文面向 Deepsight 开发者，说明如何在源码仓库内完成构建，并把当前 `build/` 产物安装为可运行的本机环境。普通用户安装请看[安装 Deepsight](/guide/install)。
+> 本文面向 Deepsight 开发者，说明如何在源码仓库内完成构建，并把当前 `build/` 产物安装为可运行的本机环境。普通用户安装请看[安装 Deepsight](/guide/use/install)。
 
 ---
 
@@ -19,7 +19,7 @@
 
 ## 二、准备开发环境
 
-先按[一键部署](/guide/quick-start)准备开发环境，然后在仓库根目录执行：
+先按[一键部署](/guide/dev/quick-start)准备开发环境，然后在仓库根目录执行：
 
 ```bash
 . scripts/dev/env.sh
@@ -41,13 +41,12 @@ build/deepsight-mcp-stdio
 推荐使用开发者专用 wrapper：
 
 ```bash
-sudo ./scripts/dev/install-from-build.sh --preset llm-quickstart
+sudo ./scripts/dev/install-from-build.sh --preset single-node-demo
 ```
 
 常见选择：
 
 ```bash
-sudo ./scripts/dev/install-from-build.sh --preset llm-quickstart
 sudo ./scripts/dev/install-from-build.sh --preset single-node-demo
 sudo ./scripts/dev/install-from-build.sh --preset split-server --server-address 10.0.0.10:50051
 sudo ./scripts/dev/install-from-build.sh --preset split-probe --probe-address 10.0.0.10:50051
@@ -92,7 +91,7 @@ sudo ./build/deepsight-probe --config configs/probe.example.yaml
 
 ## 六、相关文档
 
-- 普通用户 / release 安装：[安装 Deepsight](/guide/install)
+- 普通用户 / release 安装：[安装 Deepsight](/guide/use/install)
 - LLM/MCP 用户接入：[LLM 快速接入](/guide/use/llm-quick-start)
 - 单机完整演示：[单机完整演示](/guide/use/single-node-demo)
 - Claude Code MCP 接入：[Claude Code MCP 接入](/guide/dev/claude-code-mcp)

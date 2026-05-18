@@ -1,7 +1,7 @@
 # 安装 Deepsight
 
 > 本文面向 Deepsight 用户，说明如何获取、安装和启动 Deepsight Server 与 Deepsight Probe。
-> 配置项说明见[用户配置说明](/guide/config)，手工前台调试见[手工运行与前台调试](/guide/use/manual-run)。
+> 配置项说明见[用户配置说明](/guide/use/config)，手工前台调试见[手工运行与前台调试](/guide/use/manual-run)。
 
 首次使用时，建议先按目标选择入口：
 
@@ -134,7 +134,7 @@ sudo install -m 0755 bin/deepsight-mcp-stdio /usr/local/bin/deepsight-mcp-stdio
 如果你想避免手工复制二进制、配置和 systemd unit，release 包现在提供基于 preset 的一键安装脚本：
 
 ```bash
-sudo ./install.sh --preset llm-quickstart
+sudo ./install.sh --preset single-node-demo
 ```
 
 它会自动：
@@ -149,7 +149,6 @@ sudo ./install.sh --preset llm-quickstart
 
 preset 建议：
 
-- LLM 首次接入：`sudo ./install.sh --preset llm-quickstart`
 - 单机完整演示：`sudo ./install.sh --preset single-node-demo`
 - 接收端主机：`sudo ./install.sh --preset split-server --server-address &lt;server-ip&gt;:50051`
 - 被观测主机：`sudo ./install.sh --preset split-probe --probe-address &lt;server-ip&gt;:50051`

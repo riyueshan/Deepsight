@@ -57,7 +57,6 @@ Release 配置是交付模板，表达“推荐默认值”，不代表真实运
 
 - `configs/probe.example.yaml`
 - `configs/server.example.yaml`
-- `configs/presets/llm-quickstart/server.yaml`
 - `configs/presets/single-node-demo/server.yaml`
 - `configs/presets/single-node-demo/probe.yaml`
 - `configs/presets/split-server/server.yaml`

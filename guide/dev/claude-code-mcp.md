@@ -8,9 +8,9 @@
 
 常见来源：
 
-- release 安装：`sudo ./install.sh --preset llm-quickstart`
 - release 单机完整演示：`sudo ./install.sh --preset single-node-demo`
-- 源码构建安装：`sudo ./scripts/dev/install-from-build.sh --preset llm-quickstart`
+- 分布式 Server 主机：`sudo ./install.sh --preset split-server --server-address &lt;server-ip&gt;:50051`
+- 源码构建安装：`sudo ./scripts/dev/install-from-build.sh --preset single-node-demo`
 
 默认 MCP 地址：
 
@@ -81,9 +81,25 @@ deepsight-init-client claude-code --scope project --mcp-url http://127.0.0.1:500
 
 这样可以避免直接把 MCP 暴露到公网或大范围内网。
 
+如果你确实要在受控私网内直连远端 MCP，可以在 `split-server` 安装时显式改成内网地址：
+
+```bash
+sudo ./install.sh \
+  --preset split-server \
+  --server-address 10.0.0.10:50051 \
+  --mcp-address 10.0.0.10:50052
+```
+
+然后 Claude Code 直接连：
+
+```bash
+deepsight-init-client claude-code --scope project --mcp-url http://10.0.0.10:50052
+```
+
+但这应作为备选，不应替代 SSH tunnel 作为默认推荐。
+
 ## 五、场景边界
 
-- `llm-quickstart`：只读 MCP 验证路径，`server.task_channel.enabled=false`，不用于完整 Tool 闭环。
 - `single-node-demo`：完整本机演示路径，`server + probe` 默认同机通过 UDS 连接，MCP 仍走 `127.0.0.1:50052`。
 - `split-server` / `split-probe`：分布式路径，`server` 与 `probe` 通过 gRPC/TCP 通信。
 

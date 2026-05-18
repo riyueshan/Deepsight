@@ -382,4 +382,4 @@ gRPC 层需要明确失败，而不是静默丢弃。
 - [Server 记忆机制设计](/guide/server/memory)
 - [Probe API 接入说明](/guide/dev/probe-api)
 - [Telemetry 总线设计](/guide/dev/proto/telemetry-bus)
-- [RPC 核心通信契约](/guide/rpc-contract)
+- [RPC 核心通信契约](/guide/architecture/rpc-contract)

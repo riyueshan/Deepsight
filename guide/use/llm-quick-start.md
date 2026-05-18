@@ -1,27 +1,16 @@
 # LLM 快速接入
 
-> 本文面向只想先把 Claude Code 接到 Deepsight MCP 的用户。目标是最短路径跑通 `deepsight-server` 的 MCP Resource 读取，不要求先部署 `deepsight-probe`。
+> 本文面向已经部署好 Deepsight Server、现在只想把 Claude Code 接到 MCP 的用户。它不再对应单独 preset，而是说明如何连接一个已经可用的 Server。
 
 ## 一、适用场景
 
-适合你当前只想验证以下链路：
+适合你当前已经满足以下条件之一：
 
-- `Claude Code -> Deepsight MCP`
-- LLM 能读取 `system://health`、`system://metrics/summary` 等只读资源
+- 你已经在本机用 `single-node-demo` 跑起了 `deepsight-server`
+- 你已经在远端用 `split-server` 跑起了 `deepsight-server`
+- 你只需要解决 `Claude Code -> Deepsight MCP` 的连接问题
 
-如果你还不需要真实执行 Probe Task，不必先安装 `probe`。
-
-## 二、最快路径
-
-### 2.1 安装 Server 运行时
-
-在 release 包解包目录执行：
-
-```bash
-sudo ./install.sh --preset llm-quickstart
-```
-
-### 2.2 确认 MCP 已监听
+## 二、先确认 Server 的 MCP 已监听
 
 ```bash
 ss -ltnp | rg 50052
@@ -34,7 +23,7 @@ systemctl status deepsight-server --no-pager
 http://127.0.0.1:50052
 ```
 
-## 三、接 Claude Code
+## 三、同机连接 Claude Code
 
 在你的项目目录执行：
 
@@ -56,19 +45,28 @@ claude
 /mcp
 ```
 
-如果 Claude Code 与 `deepsight-server` 不在同一台机器，推荐先做 SSH tunnel：
+## 四、远端 Server 连接
+
+如果 Claude Code 与 `deepsight-server` 不在同一台机器，推荐优先使用 SSH tunnel：
 
 ```bash
 ssh -L 50052:127.0.0.1:50052 user@server-host
+deepsight-init-client claude-code --scope project --mcp-url http://127.0.0.1:50052 --force
 ```
 
-然后仍使用：
+这样 Claude Code 仍然只访问本地回环地址。
 
-```text
-http://127.0.0.1:50052
+如果你确实要直连受控私网里的远端 MCP，也可以直接写远端地址：
+
+```bash
+deepsight-init-client claude-code --scope project --mcp-url http://10.0.0.10:50052 --force
 ```
 
-## 四、首次验证
+这要求远端 `deepsight-server` 安装时已经把 MCP 改成内网可达地址，而不是默认的 `127.0.0.1:50052`。
+
+但这不是默认推荐。
+
+## 五、首次验证
 
 建议先发一条只读请求：
 
@@ -83,7 +81,7 @@ http://127.0.0.1:50052
 - MCP Streamable HTTP 已可用
 - Claude Code 已连上 Deepsight
 
-## 五、下一步
+## 六、下一步
 
 - 如果你想完整验证 Tool 闭环，请继续看[单机完整演示](/guide/use/single-node-demo)。
 - 如果你的 `server` 与 `probe` 分开部署，请看[分布式部署](/guide/use/distributed-deploy)。
